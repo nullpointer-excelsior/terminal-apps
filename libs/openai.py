@@ -25,23 +25,6 @@ def get_model(model: str):
 client = OpenAI()
 
 
-def ask_to_chatgpt(messages, model=ChatGPTModel.GPT_3_5_TURBO, temperature=0):
-    response = client.chat.completions.create(
-        model=model.value,
-        messages=messages,
-        temperature=temperature
-    )
-    return {
-        'total_token': response['usage']['total_tokens'],
-        'answer': response['choices'][0]['message']['content']
-    }
-
-
-def get_completion(prompt, model=ChatGPTModel.GPT_3_5_TURBO, temperature=0): 
-    messages = [{"role": "user", "content": prompt}]
-    return ask_to_chatgpt(messages=messages, model=model, temperature=temperature)
-
-
 def ask_to_chatgpt_stream(messages, model=ChatGPTModel.GPT_3_5_TURBO, temperature=0):
     stream = client.chat.completions.create(
         model=model.value,
