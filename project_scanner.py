@@ -7,6 +7,8 @@ def get_file_type(file_name):
 def read_directory(directory, ignore_ext=None, ignore_dirs=None):
     ignore_ext = ignore_ext or []
     ignore_dirs = ignore_dirs or []
+    ignore_dirs.append('node_modules')
+    ignore_dirs.append('venv')
 
     files_summary = []
     files_details = []
