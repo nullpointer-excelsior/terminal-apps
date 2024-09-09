@@ -3,11 +3,12 @@ import base64
 import argparse
 from openai import OpenAI
 
+
 client = OpenAI()
 
 
 def openai_vision_request(model, user_input, base64_image):
-    response = client.chat.completions.create(
+    stream = client.chat.completions.create(
         model=model,
         messages=[
             {
@@ -27,8 +28,12 @@ def openai_vision_request(model, user_input, base64_image):
             }
         ],
         max_tokens=1000,
+        stream=True
     )
-    return response.choices[0]
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        answer = delta.content if delta.content is not None else ''
+        yield answer
 
 
 def capture_screen(filename):
@@ -43,18 +48,18 @@ def png_to_base64(file_path):
     
 
 def translate_image(model, base64_image):
-    res = openai_vision_request(model, "Traduce el siguiente texto al español si el contenido esta en ingles y si el contenido esta en español traducelo al ingles", base64_image)
-    print(res)
+    for stream in openai_vision_request(model, "Traduce el siguiente texto al español si el contenido esta en ingles y si el contenido esta en español traducelo al ingles", base64_image):
+        print(stream, end="", flush=True)
 
 
 def explain_image(model, base64_image):
-    res = openai_vision_request(model, "Explicame que hay en la imagen", base64_image)
-    print(res)
+    for stream in openai_vision_request(model, "Explicame que hay en la imagen", base64_image):
+        print(stream, end="", flush=True)
+
 
 def prompt_image(model, prompt, base64_image):
-    res = openai_vision_request(model, prompt, base64_image)
-    print(res)
-
+    for stream in openai_vision_request(model, prompt, base64_image):
+        print(stream, end="", flush=True)
 
 
 def main():
