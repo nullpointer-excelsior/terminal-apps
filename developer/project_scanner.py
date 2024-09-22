@@ -1,5 +1,5 @@
 import os
-import argparse
+import click
 
 def get_file_type(file_name):
     return os.path.splitext(file_name)[1][1:] or 'txt'
@@ -43,17 +43,15 @@ def create_markdown_summary(title, directory, output_file, ignore_ext, ignore_di
         md_file.write("\n\n## Archivos\n")
         md_file.write("\n\n".join(files_details))
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate a Markdown summary of files in a directory.")
-    parser.add_argument("--title", required=True, help="Title of the scan")
-    parser.add_argument("--directory", required=True, help="Directory to scan")
-    parser.add_argument("--output", default="summary.md", help="Output file name and path")
-    parser.add_argument("--ignore-ext", help="Comma-separated list of file extensions to ignore (e.g., py,txt)")
-    parser.add_argument("--ignore-directory", help="Comma-separated list of directories to ignore")
 
-    args = parser.parse_args()
+@click.command(help='Muestra los archivos y el codigo de un directorio en formato markdown')
+@click.option('-t','--title', required=True, help="Title of the scan")
+@click.option('-d','--directory', required=True, help="Directory to scan")
+@click.option('-o','--output', default='summary.md', help="Output file name and path")
+@click.option('-ix','--ignore-ext', help="Comma-separated list of file extensions to ignore (e.g., py,txt)")
+@click.option('-id','--ignore-directory', help="Comma-separated list of directories to ignore")
+def proyect_scanner(title, directory, output, ignore_ext, ignore_directory):
+    ignore_ext_list = ignore_ext.split(",") if ignore_ext else []
+    ignore_dirs_list = ignore_directory.split(",") if ignore_directory else []
 
-    ignore_ext = args.ignore_ext.split(",") if args.ignore_ext else []
-    ignore_dirs = args.ignore_directory.split(",") if args.ignore_directory else []
-
-    create_markdown_summary(args.title, args.directory, args.output, ignore_ext, ignore_dirs)
+    create_markdown_summary(title, directory, output, ignore_ext_list, ignore_dirs_list)

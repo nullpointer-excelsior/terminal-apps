@@ -1,6 +1,6 @@
 import os
+import click
 import base64
-import argparse
 from openai import OpenAI
 
 
@@ -61,29 +61,21 @@ def prompt_image(model, prompt, base64_image):
     for stream in openai_vision_request(model, prompt, base64_image):
         print(stream, end="", flush=True)
 
-
-def main():
-    parser = argparse.ArgumentParser(description="Un script que maneja opciones de traducción, explicación y solicitud.")
-    
-    # Opciones y sus versiones cortas
-    parser.add_argument('-t', '--translate', action='store_true', help="Habilita la opción de traducción")
-    parser.add_argument('-e', '--explain', action='store_true', help="Habilita la opción de explicación")
-    parser.add_argument('-p', '--prompt', type=str, help="Proporciona un prompt de texto")
-    
-    args = parser.parse_args()
+@click.command(help='Captura de pantalla con integración AI')
+@click.option('-tr', '--translate', is_flag=True, help="Habilita la opción de traducción")
+@click.option('-e', '--explain', is_flag=True, help="Habilita la opción de explicación")
+@click.option('-p', '--prompt', type=str, help="Proporciona un prompt de texto")
+def screenshot(translate, explain, prompt):
     filename = "capture.png"
 
     capture_screen(filename)
     b64 = png_to_base64(filename)
     
-    if args.translate:
+    if translate:
         translate_image('gpt-4o-mini', b64)
-    if args.explain:
+    if explain:
         explain_image('gpt-4o-mini', b64)
-    if args.prompt:
-        prompt_image('gpt-4o-mini', args.prompt, b64)
+    if prompt:
+        prompt_image('gpt-4o-mini', prompt, b64)
     
     os.system(f"rm -f {filename}")
-    
-if __name__ == '__main__':
-    main()
