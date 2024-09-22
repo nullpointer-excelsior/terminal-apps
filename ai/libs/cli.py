@@ -6,6 +6,8 @@ from libs.chatgpt import chatgpt_models
 def get_argument_or_stdin(ctx, param, value):
     if not value and not sys.stdin.isatty():
         value = click.get_text_stream("stdin").read()
+    else:
+        raise click.BadArgumentUsage("Text can’t be empty.") 
     return value
 
 
