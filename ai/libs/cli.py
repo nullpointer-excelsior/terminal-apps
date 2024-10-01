@@ -50,7 +50,3 @@ def get_context_options(ctx):
     model = ctx.obj["model"]
     temperature = ctx.obj["temperature"]
     return model, temperature
-
-def get_value_or_stdin(input):
-    if input is None:
-        return click.get_text_stream('stdin').read().strip()
