@@ -1,6 +1,6 @@
 import click
 from grammar import grammar
-from developer import developer
+from dev import dev
 from question import question
 from translate import translate
 from summarize import summarize
@@ -22,7 +22,7 @@ def cli(ctx, model, temperature):
 cli.add_command(question)
 cli.add_command(grammar)
 cli.add_command(translate)
-cli.add_command(developer)
+cli.add_command(dev)
 cli.add_command(english)
 cli.add_command(summarize)
 cli.add_command(screenshot)

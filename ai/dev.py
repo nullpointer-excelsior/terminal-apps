@@ -10,6 +10,6 @@ Eres un útil asistente y experto desarrollador y arquitecto de software. Respon
 @click.command(help='Desarrollador experto')
 @click.pass_context
 @userinput_argument()
-def developer(ctx, userinput):
+def dev(ctx, userinput):
     model, temperature = get_context_options(ctx)
     ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
