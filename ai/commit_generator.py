@@ -1,7 +1,8 @@
 from libs.chatgpt import ask_simple_question_to_chatgpt
-from libs.cli import get_context_options
+from libs.cli import get_context_options, copy_option
 import subprocess
 import click
+import pyperclip
 
 
 prompt="""
@@ -14,11 +15,14 @@ def get_diff():
 
 @click.command(help='Generador de commit')
 @click.pass_context
-def commit_generator(ctx):
+@copy_option()
+def commit_generator(ctx, copy):
     model, temperature = get_context_options(ctx)
     try:
         diff = get_diff()
         prompt_diff = prompt.format(diff=diff)
-        ask_simple_question_to_chatgpt(prompt_diff, model=model, temperature=temperature)
+        response = ask_simple_question_to_chatgpt(prompt_diff, model=model, temperature=temperature)
+        if copy:
+            pyperclip.copy(response)
     except subprocess.CalledProcessError:
         pass
