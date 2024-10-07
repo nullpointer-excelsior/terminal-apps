@@ -8,6 +8,7 @@ from english import english
 from libs.cli import model_option, temperature_option
 from test import test
 from screenshot import screenshot
+from commit_generator import commit_generator
 
 
 @click.group(help='Herramientas de AI para terminal bash')
@@ -27,5 +28,6 @@ cli.add_command(english)
 cli.add_command(summarize)
 cli.add_command(screenshot)
 cli.add_command(test)
+cli.add_command(commit_generator)
 
 cli()

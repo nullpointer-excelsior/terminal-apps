@@ -44,3 +44,25 @@ def ask_to_chatgpt(
     return complete_response
 
 
+def ask_simple_question_to_chatgpt(
+        userinput,
+        model='gpt4om',
+        temperature=0,
+    ):
+    complete_response = ''
+    messages = [
+        {"role": "user", "content": userinput}
+    ]
+    stream = client.chat.completions.create(
+        model=get_model(model),
+        messages=messages,
+        temperature=temperature,
+        stream=True
+    )
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        answer = delta.content if delta.content is not None else ''
+        print(answer, end="", flush=True)
+        complete_response += answer
+    print()
+    return complete_response
