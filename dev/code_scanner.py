@@ -7,9 +7,7 @@ def get_file_type(file_name):
 def read_directory(directory, ignore_ext=None, ignore_dirs=None):
     ignore_ext = ignore_ext or []
     ignore_dirs = ignore_dirs or []
-    ignore_dirs.append('node_modules')
-    ignore_dirs.append('venv')
-
+    ignore_dirs += ['node_modules', 'venv', '.venv','__pycache__']
     files_summary = []
     files_details = []
 
@@ -27,7 +25,7 @@ def read_directory(directory, ignore_ext=None, ignore_dirs=None):
 
             file_path = os.path.join(root, file)
             files_summary.append(f"- {file_path}")
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='latin-1') as f:
                 content = f.read()
             files_details.append(f"**{file_path}**\n\n```{file_ext}\n{content}\n```")
 
@@ -36,22 +34,35 @@ def read_directory(directory, ignore_ext=None, ignore_dirs=None):
 def create_markdown_summary(title, directory, output_file, ignore_ext, ignore_dirs):
     files_summary, files_details = read_directory(directory, ignore_ext, ignore_dirs)
 
-    with open(output_file, 'w') as md_file:
-        md_file.write(f"# {title}\n\n")
+    with open(f"{output_file}.md", 'w', encoding='latin-1') as md_file:
+        if title:
+            md_file.write(f"# {title}\n\n")
         md_file.write("## Lista de archivos\n")
         md_file.write("\n".join(files_summary))
         md_file.write("\n\n## Archivos\n")
         md_file.write("\n\n".join(files_details))
 
 
+def print_markdown_summary(title, directory, ignore_ext, ignore_dirs):
+    files_summary, files_details = read_directory(directory, ignore_ext, ignore_dirs)
+    if title:
+        print(f"# {title}\n")
+    print("## Lista de archivos")
+    print("\n".join(files_summary))
+    print("\n## Archivos")
+    print("\n\n".join(files_details))
+
+
 @click.command(help='Muestra los archivos y el codigo de un directorio en formato markdown')
-@click.option('-t','--title', required=True, help="Title of the scan")
+@click.option('-t','--title', required=False, help="Title of the scan")
 @click.option('-d','--directory', required=True, help="Directory to scan")
-@click.option('-o','--output', default='summary.md', help="Output file name and path")
+@click.option('-f','--file', default=None, help="Output file name and path")
 @click.option('-ix','--ignore-ext', help="Comma-separated list of file extensions to ignore (e.g., py,txt)")
 @click.option('-id','--ignore-directory', help="Comma-separated list of directories to ignore")
-def proyect_scanner(title, directory, output, ignore_ext, ignore_directory):
+def code_scanner(title, directory, file, ignore_ext, ignore_directory):
     ignore_ext_list = ignore_ext.split(",") if ignore_ext else []
     ignore_dirs_list = ignore_directory.split(",") if ignore_directory else []
-
-    create_markdown_summary(title, directory, output, ignore_ext_list, ignore_dirs_list)
+    if file:
+        create_markdown_summary(title, directory, file, ignore_ext_list, ignore_dirs_list)
+    else:
+        print_markdown_summary(title, directory, ignore_ext_list, ignore_dirs_list)
