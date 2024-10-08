@@ -32,6 +32,8 @@ def read_directory(directory, ignore_ext=None, ignore_dirs=None):
     return files_summary, files_details
 
 def create_markdown_summary(title, directory, output_file, ignore_ext, ignore_dirs):
+    if output_file.endswith('.md'):
+        output_file = output_file[:-3]
     files_summary, files_details = read_directory(directory, ignore_ext, ignore_dirs)
 
     with open(f"{output_file}.md", 'w', encoding='latin-1') as md_file:
@@ -56,7 +58,7 @@ def print_markdown_summary(title, directory, ignore_ext, ignore_dirs):
 @click.command(help='Muestra los archivos y el codigo de un directorio en formato markdown')
 @click.option('-t','--title', required=False, help="Title of the scan")
 @click.option('-d','--directory', required=True, help="Directory to scan")
-@click.option('-f','--file', default=None, help="Output file name and path")
+@click.option('-f','--file', default=None, help="Output file in markdown format")
 @click.option('-ix','--ignore-ext', help="Comma-separated list of file extensions to ignore (e.g., py,txt)")
 @click.option('-id','--ignore-directory', help="Comma-separated list of directories to ignore")
 def code_scanner(title, directory, file, ignore_ext, ignore_directory):
