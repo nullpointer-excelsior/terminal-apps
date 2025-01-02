@@ -3,7 +3,7 @@ from libs.cli import userinput_argument, get_context_options
 import click
 
 
-prompt="""
+prompt_base="""
 Actua como un experto profesor en ingles y corrige el siguiente texto encerrado en triple acento grave ```{text}```. este texto puede estar en ingles o español deberas corregir si existe algun error
 y tambien puedes dar sugeriencias para mejorarlo.
 Devolveras un resumen con los errores, sugerencias y finalmente devolveras el texto correjido en ingles encerrado en triple acento grave.
@@ -13,6 +13,7 @@ Devolveras un resumen con los errores, sugerencias y finalmente devolveras el te
 @click.command(help='Profesor de inglés')
 @click.pass_context
 @userinput_argument()
-def english(ctx, userinput, model, temperature):
+def english(ctx, userinput):
     model, temperature = get_context_options(ctx)
+    prompt = prompt_base.format(text=userinput)
     ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
