@@ -1,13 +1,9 @@
 import click
-from grammar import grammar
-from dev import dev
-from question import question
-from translate import translate
-from summarize import summarize
+from text import grammar, translate, question, summarize
+from developer import dev, commit_generator
 from english import english
-from libs.cli import model_option, temperature_option
 from screenshot import screenshot
-from commit_generator import commit_generator
+from libs.cli import model_option, temperature_option
 
 
 @click.group(help='Herramientas de AI para terminal bash')

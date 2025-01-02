@@ -1,6 +1,52 @@
-from libs.chatgpt import ask_to_chatgpt
-from libs.cli import userinput_argument, get_context_options
 import click
+import pyperclip
+from libs.cli import copy_option, userinput_argument, get_context_options
+from libs.chatgpt import ask_to_chatgpt
+
+grammar_prompt = """
+Corrije gramaticalmente el siguiente texto encerrado en triple acento grave. ```{userinput}```, no debes devolver el texto con el triple acento grave.
+"""
+
+translate_prompt = """
+Traduce el siguiente texto: "{text}"
+Si el texto esta en inglés traducelo al español o viceversa.
+"""
+
+question_prompt="""
+Eres un útil asistente. Responderás de forma directa y sin explicaciones a menos que te indique lo contrario.
+"""
+
+
+@click.command(help='Corrije la gramatica de un texto')
+@click.pass_context
+@userinput_argument()
+@copy_option()
+def grammar(ctx, userinput, copy):
+    model, temperature = get_context_options(ctx)
+    prompt = grammar_prompt.format(userinput=userinput)
+    response = ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
+    if copy:
+        pyperclip.copy(response)
+
+
+@click.command(help='Traductor de Inglés - Español')
+@click.pass_context
+@userinput_argument()
+@copy_option()
+def translate(ctx, userinput, copy):
+    prompt = translate_prompt.format(text=userinput)
+    model, temperature = get_context_options(ctx)
+    response = ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
+    if copy:
+        pyperclip.copy(response) 
+
+
+@click.command(help='Pregunta a ChatGPT')
+@click.pass_context
+@userinput_argument()
+def question(ctx, userinput):
+    model, temperature = get_context_options(ctx)
+    ask_to_chatgpt(userinput, prompt=question_prompt, model=model, temperature=temperature)
 
 
 def get_instructions(words, sentences, tone, audience, style, markdown, translate):
