@@ -48,10 +48,31 @@ def summary_source_code(src_files):
     return "\n".join(summary)
 
 
+def get_directory_files(directory):
+    src_files = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            src_files.append(os.path.join(root, file))
+    return src_files
+
+
 @click.command(help="Resume codigo fuente en formato markdown")
 @click.option("-o", "--output", default=None, help="Output file in markdown format")
 @click.argument("src_files", nargs=-1)
 def summarize_sources(output, src_files):
+    src_files_filtered = filter_source_code_files(src_files)
+    summary = summary_source_code(src_files_filtered)
+    if output:
+        Path(f"{output}.md").write_text(summary)
+    else:
+        print(summary)
+
+
+@click.command(help="Resume codigo fuente de un directorio en formato markdown")
+@click.option("-o", "--output", default=None, help="Output file in markdown format")
+@click.argument("directory")
+def summarize_dir(output, directory):
+    src_files = get_directory_files(directory)
     src_files_filtered = filter_source_code_files(src_files)
     summary = summary_source_code(src_files_filtered)
     if output:
