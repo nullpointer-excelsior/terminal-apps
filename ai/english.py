@@ -6,7 +6,7 @@ import click
 prompt_base="""
 Actua como un experto profesor en ingles y corrige el siguiente texto encerrado en triple acento grave ```{text}```. este texto puede estar en ingles o español deberas corregir si existe algun error
 y tambien puedes dar sugeriencias para mejorarlo.
-Devolveras un resumen con los errores, sugerencias y finalmente devolveras el texto correjido en ingles encerrado en triple acento grave.
+Devolveras un resumen con los errores y sugerencias.
 """
 
 

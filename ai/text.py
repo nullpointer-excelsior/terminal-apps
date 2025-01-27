@@ -74,7 +74,7 @@ def get_prompt(text, instructions):
         instructions_text = f'El resumen debe seguir las siguientes instrucciones:\n{instructions_list}'
     else:
         instructions_text = ''
-    return f"""Tu tarea sera resumir el texto encerrado en triple acento grave.\n{instructions_text}\n```{text}```."""
+    return f"""Resume el siguiente texto encerrado en triple acento grave.\n{instructions_text}\n```{text}```."""
 
 
 @click.command(help='Resume un texto')
