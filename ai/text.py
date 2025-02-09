@@ -53,7 +53,7 @@ def get_instructions(words, sentences, tone, audience, style, markdown, translat
     instructions = []
     if words:
         instructions.append(f' - El resumen no debe tener más de {words} palabras.')
-    elif sentences:
+    if sentences:
         instructions.append(f' - El resumen no debe tener más de {sentences} oraciones.')
     if style:
         instructions.append(f' - El resumen debe tener un estilo {style}.')
@@ -62,7 +62,7 @@ def get_instructions(words, sentences, tone, audience, style, markdown, translat
     if tone:
         instructions.append(f' - El resumen debe tener un tono {tone}.')
     if markdown:
-        instructions.append(' - El resumen debe estar formato markdown.')
+        instructions.append(' - El resumen debe estar en formato markdown.')
     if translate:
         instructions.append(' - El resumen debe ser traducido al español si es necesario.')
     return instructions
