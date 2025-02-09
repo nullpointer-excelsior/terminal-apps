@@ -3,6 +3,7 @@ from text import grammar, translate, question, summarize
 from developer import dev, commit_generator
 from english import english
 from screenshot import screenshot
+from chat import chat
 from libs.cli import model_option, temperature_option
 
 
@@ -23,5 +24,6 @@ cli.add_command(english)
 cli.add_command(summarize)
 cli.add_command(screenshot)
 cli.add_command(commit_generator)
+cli.add_command(chat)
 
 cli()
