@@ -9,7 +9,8 @@ Eres un útil asistente y experto desarrollador y arquitecto de software. Respon
 """
 
 commit_generator_prompt="""
-Crea un commit semantico corto en ingles en base al siguiente diff: {diff}
+Crea un mensaje de commit semántico corto en inglés basado en el siguiente diff:
+{diff}
 """
 
 
