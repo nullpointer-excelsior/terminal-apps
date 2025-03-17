@@ -2,6 +2,12 @@ import os
 import click
 import base64
 from openai import OpenAI
+from pathlib import Path
+from libs.cli import copy_option
+
+if Path("archivo.txt").exists():
+    print("El archivo existe.")
+
 
 
 client = OpenAI()
@@ -65,10 +71,16 @@ def prompt_image(model, prompt, base64_image):
 @click.option('-tr', '--translate', is_flag=True, help="Habilita la opción de traducción")
 @click.option('-e', '--explain', is_flag=True, help="Habilita la opción de explicación")
 @click.option('-p', '--prompt', type=str, help="Proporciona un prompt de texto")
+@copy_option()
 def screenshot(translate, explain, prompt):
     filename = "capture.png"
 
     capture_screen(filename)
+    
+    if not Path(filename).exists():
+        click.echo(click.style("Capture aborted", fg='yellow'))
+        return
+    
     b64 = png_to_base64(filename)
     
     if translate:
