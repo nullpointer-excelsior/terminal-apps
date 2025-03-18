@@ -1,13 +1,10 @@
 import os
 import click
 import base64
+import pyperclip
 from openai import OpenAI
 from pathlib import Path
 from libs.cli import copy_option
-
-if Path("archivo.txt").exists():
-    print("El archivo existe.")
-
 
 
 client = OpenAI()
@@ -54,25 +51,34 @@ def png_to_base64(file_path):
     
 
 def translate_image(model, base64_image):
+    response = ''
     for stream in openai_vision_request(model, "Traduce el siguiente texto al español si el contenido esta en ingles y si el contenido esta en español traducelo al ingles", base64_image):
         print(stream, end="", flush=True)
+        response += stream
+    return response
 
 
 def explain_image(model, base64_image):
+    response = ''
     for stream in openai_vision_request(model, "Explicame que hay en la imagen", base64_image):
         print(stream, end="", flush=True)
+        response += stream
+    return response
 
 
 def prompt_image(model, prompt, base64_image):
+    response = ''
     for stream in openai_vision_request(model, prompt, base64_image):
         print(stream, end="", flush=True)
+        response += stream
+    return response
 
 @click.command(help='Captura de pantalla con integración AI')
 @click.option('-tr', '--translate', is_flag=True, help="Habilita la opción de traducción")
 @click.option('-e', '--explain', is_flag=True, help="Habilita la opción de explicación")
 @click.option('-p', '--prompt', type=str, help="Proporciona un prompt de texto")
 @copy_option()
-def screenshot(translate, explain, prompt):
+def screenshot(translate, explain, prompt, copy):
     filename = "capture.png"
 
     capture_screen(filename)
@@ -84,10 +90,12 @@ def screenshot(translate, explain, prompt):
     b64 = png_to_base64(filename)
     
     if translate:
-        translate_image('gpt-4o-mini', b64)
+        response = translate_image('gpt-4o-mini', b64)
     if explain:
-        explain_image('gpt-4o-mini', b64)
+        response = explain_image('gpt-4o-mini', b64)
     if prompt:
-        prompt_image('gpt-4o-mini', prompt, b64)
+        response = prompt_image('gpt-4o-mini', prompt, b64)
+    if copy:
+        pyperclip.copy(response)
     
     os.system(f"rm -f {filename}")
