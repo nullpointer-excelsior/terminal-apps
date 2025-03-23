@@ -1,7 +1,7 @@
 import click
 from sumarize_source_code import summarize_sources, summarize_dir
 
-@click.group(help='Herramientas terminal bash')
+@click.group(help='Herramientas dev para terminal bash')
 def cli():
     pass
 
