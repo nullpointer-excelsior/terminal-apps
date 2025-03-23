@@ -29,4 +29,7 @@ python ai
 # utilitarios para developer
 python developer
 
+# utilitarios para audio
+python audio
+
 ```
