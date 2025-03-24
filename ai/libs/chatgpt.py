@@ -22,6 +22,24 @@ def ask_to_chatgpt(userinput, model='gpt4om', temperature=0, prompt="Eres un uti
     return _get_response_from_chatgpt(messages, model, temperature)
 
 
+def transcribe_audio(audio_filename, transcription_model='gpt-4o-mini-transcribe', language='es'):
+    with open(audio_filename, "rb") as audio_file:
+        stream = client.audio.transcriptions.create(
+            file=audio_file,
+            model=transcription_model,
+            language=language,
+            stream=True
+        )
+        complete_response = ''
+        for event in stream:
+            if event.type == 'transcript.text.delta':
+                delta = event.delta
+                print(delta, end="", flush=True)
+            elif event.type == 'transcript.text.done':
+                complete_response = event.text
+        return complete_response
+
+
 def ask_simple_question_to_chatgpt(userinput, model='gpt4om', temperature=0):
     messages = [{"role": "user", "content": userinput}]
     return _get_response_from_chatgpt(messages, model, temperature)
