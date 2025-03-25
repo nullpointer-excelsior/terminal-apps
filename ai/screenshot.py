@@ -5,6 +5,8 @@ import pyperclip
 from openai import OpenAI
 from pathlib import Path
 from libs.cli import copy_option
+import tempfile
+from datetime import datetime
 
 
 client = OpenAI()
@@ -50,6 +52,12 @@ def png_to_base64(file_path):
         return base64_encoded.decode('utf-8')
     
 
+def generate_temp_capture():
+    temp_dir = tempfile.gettempdir()
+    filename = datetime.now().strftime("%Y-%m-%d_%H:%M:%S") + "capture.png"
+    return os.path.join(temp_dir, filename)
+
+
 def translate_image(model, base64_image):
     response = ''
     for stream in openai_vision_request(model, "Traduce el siguiente texto al español si el contenido está en inglés, y si el contenido está en español, tradúcelo al inglés.", base64_image):
@@ -81,14 +89,15 @@ def prompt_image(model, prompt, base64_image):
         response += stream
     return response
 
+
 @click.command(help='Captura de pantalla con integración AI')
 @click.option('-tr', '--translate', is_flag=True, help="Habilita la opción de traducción")
 @click.option('-e', '--explain', is_flag=True, help="Habilita la opción de explicación")
 @click.option('-p', '--prompt', type=str, help="Proporciona un prompt de texto")
 @copy_option()
 def screenshot(translate, explain, prompt, copy):
-    filename = "capture.png"
-
+    
+    filename = generate_temp_capture()
     capture_screen(filename)
     
     if not Path(filename).exists():
@@ -109,4 +118,3 @@ def screenshot(translate, explain, prompt, copy):
     if copy:
         pyperclip.copy(response)
     
-    os.system(f"rm -f {filename}")
