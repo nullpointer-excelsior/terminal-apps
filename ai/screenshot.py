@@ -52,7 +52,7 @@ def png_to_base64(file_path):
 
 def translate_image(model, base64_image):
     response = ''
-    for stream in openai_vision_request(model, "Traduce el siguiente texto al español si el contenido esta en ingles y si el contenido esta en español traducelo al ingles", base64_image):
+    for stream in openai_vision_request(model, "Traduce el siguiente texto al español si el contenido está en inglés, y si el contenido está en español, tradúcelo al inglés.", base64_image):
         print(stream, end="", flush=True)
         response += stream
     return response
@@ -61,6 +61,14 @@ def translate_image(model, base64_image):
 def explain_image(model, base64_image):
     response = ''
     for stream in openai_vision_request(model, "Explicame que hay en la imagen", base64_image):
+        print(stream, end="", flush=True)
+        response += stream
+    return response
+
+
+def transcribe_image(model, base64_image):
+    response = ''
+    for stream in openai_vision_request(model, "Transcribe el texto de la imagen proporcinada en texto plano.", base64_image):
         print(stream, end="", flush=True)
         response += stream
     return response
@@ -91,10 +99,13 @@ def screenshot(translate, explain, prompt, copy):
     
     if translate:
         response = translate_image('gpt-4o-mini', b64)
-    if explain:
+    elif explain:
         response = explain_image('gpt-4o-mini', b64)
-    if prompt:
+    elif prompt:
         response = prompt_image('gpt-4o-mini', prompt, b64)
+    else:
+        response = transcribe_image('gpt-4o-mini', b64)
+    
     if copy:
         pyperclip.copy(response)
     

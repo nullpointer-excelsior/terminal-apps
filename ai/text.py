@@ -4,12 +4,13 @@ from libs.cli import copy_option, userinput_argument, get_context_options
 from libs.chatgpt import ask_to_chatgpt, transcribe_audio
 
 grammar_prompt = """
-Corrije gramaticalmente el siguiente texto encerrado en triple acento grave. ```{userinput}```, no debes devolver el texto con el triple acento grave.
+Corrije gramaticalmente el texto encerrado en triple acento grave. ```{userinput}```, no debes devolver el texto con el triple acento grave.
 """
 
 translate_prompt = """
 Traduce el siguiente texto: "{text}"
-Si el texto esta en inglés traducelo al español o viceversa.
+- Si el texto esta en inglés traducelo al español
+- Si el texto esta en español traducelo al inglés.
 """
 
 question_prompt="""
