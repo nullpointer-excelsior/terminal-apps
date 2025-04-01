@@ -11,6 +11,7 @@ translate_prompt = """
 Traduce el siguiente texto: "{text}"
 - Si el texto esta en inglés traducelo al español
 - Si el texto esta en español traducelo al inglés.
+- Si el texto que debe ser traducido al inglés contiene números, deberás escribirlos con palabras seguidos del número encerrado entre paréntesis.
 """
 
 question_prompt="""
