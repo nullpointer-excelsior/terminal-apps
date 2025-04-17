@@ -5,7 +5,10 @@ chatgpt_models = {
     'gpt4': 'gpt-4',
     'gpt4t': 'gpt-4-turbo',
     'gpt4o': 'gpt-4o',
-    'gpt4om': 'gpt-4o-mini'
+    'gpt4om': 'gpt-4o-mini',
+    'gpt4.1': 'gpt-4.1',
+    'gpt4.1n': 'gpt-4.1-nano',
+    'gpt4.1m': 'gpt-4.1-mini'
 }
 
 client = OpenAI()
