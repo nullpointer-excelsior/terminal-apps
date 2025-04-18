@@ -1,5 +1,5 @@
-from libs.chatgpt import ask_to_chatgpt, ask_simple_question_to_chatgpt
-from libs.cli import userinput_argument, get_context_options, copy_option
+from libs.chatgpt import ask_to_chatgpt, ask_simple_question_to_chatgpt, ask_to_chatgpt_no_stream
+from libs.cli import userinput_argument, get_context_options, copy_option, markdown_option, process_markdown
 import click
 import subprocess
 import pyperclip
@@ -13,13 +13,17 @@ Crea un mensaje de commit semántico corto en inglés basado en el siguiente dif
 {diff}
 """
 
-
 @click.command(help='Desarrollador experto')
 @click.pass_context
 @userinput_argument()
-def dev(ctx, userinput):
+@markdown_option()
+def dev(ctx, userinput, markdown):
     model, temperature = get_context_options(ctx)
-    ask_to_chatgpt(userinput, prompt=dev_prompt, model=model, temperature=temperature)
+    process_markdown(
+        markdown, 
+        lambda: ask_to_chatgpt_no_stream(userinput, prompt=dev_prompt, model=model, temperature=temperature),
+        lambda: ask_to_chatgpt(userinput, prompt=dev_prompt, model=model, temperature=temperature)
+    )
 
 
 @click.command(help='Generador de commit')

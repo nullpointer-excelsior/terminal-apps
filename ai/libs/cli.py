@@ -1,7 +1,10 @@
 import sys
 import click
 from libs.chatgpt import chatgpt_models
+from rich.console import Console
+from rich.markdown import Markdown
 
+console = Console()
 
 def get_argument_or_stdin(ctx, param, value):
     if value is not None:
@@ -46,7 +49,25 @@ def copy_option():
     return decorator
 
 
+def markdown_option():
+    def decorator(wrapper_fn):
+        return click.option('-md', '--markdown', is_flag=True, help='Respuesta en Markdown')(wrapper_fn)
+    return decorator
+
+
 def get_context_options(ctx):
     model = ctx.obj["model"]
     temperature = ctx.obj["temperature"]
     return model, temperature
+
+
+def print_markdown(content):
+    console.print(Markdown(content))
+
+
+def process_markdown(markdown: bool, with_markdown, no_markdown):
+    if markdown:
+        click.echo(click.style('🔄 Waiting for the complete answer from OpenAI...', fg='cyan', bold=True, underline=True))
+        print_markdown(with_markdown())
+    else:
+        no_markdown()

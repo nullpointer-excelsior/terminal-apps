@@ -22,6 +22,14 @@ def ask_to_chatgpt(userinput, model='gpt4om', temperature=0, prompt="Eres un uti
         {"role": "system", "content": prompt},
         {"role": "user", "content": userinput}
     ]
+    return _get_stream_response_from_chatgpt(messages, model, temperature)
+
+
+def ask_to_chatgpt_no_stream(userinput, model='gpt4om', temperature=0, prompt="Eres un util asistente. Responderas de forma directa y sin explicaciones"):
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": userinput}
+    ]
     return _get_response_from_chatgpt(messages, model, temperature)
 
 
@@ -45,14 +53,16 @@ def transcribe_audio(audio_filename, transcription_model='gpt-4o-mini-transcribe
 
 def ask_simple_question_to_chatgpt(userinput, model='gpt4om', temperature=0):
     messages = [{"role": "user", "content": userinput}]
+    return _get_stream_response_from_chatgpt(messages, model, temperature)
+
+
+def chat_with_chatgpt(messages, model='gpt4om', temperature=0, stream=True):
+    if stream:
+        return _get_stream_response_from_chatgpt(messages, model, temperature)
     return _get_response_from_chatgpt(messages, model, temperature)
 
 
-def chat_with_chatgpt(messages, model='gpt4om', temperature=0):
-    return _get_response_from_chatgpt(messages, model, temperature)
-
-
-def _get_response_from_chatgpt(messages, model, temperature):
+def _get_stream_response_from_chatgpt(messages, model, temperature):
     complete_response = ''
     stream = client.chat.completions.create(
         model=get_model(model),
@@ -67,3 +77,13 @@ def _get_response_from_chatgpt(messages, model, temperature):
         complete_response += answer
     print()
     return complete_response
+
+
+def _get_response_from_chatgpt(messages, model, temperature):
+    completion = client.chat.completions.create(
+        model=get_model(model),
+        messages=messages,
+        temperature=temperature,
+    )
+    return completion.choices[0].message.content
+    
