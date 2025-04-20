@@ -20,6 +20,8 @@ This repository contains a collection of command-line tools powered by AI, desig
 -   **`dev`**: Tools for development tasks.
     -   `summarize_sources`: Summarize source code files.
     -   `summarize_dir`: Summarize source code within a directory.
+-   **`filesystem`**: Tools for files.
+    -   `mdcat`: Show markdown files with pretty output.
 
 ## Installation
 
@@ -39,7 +41,7 @@ export AI_PROMPT_RESOURCES="$HOME/Repositories/ai-prompt-resources"
 alias ai='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/ai'
 alias dev='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/dev'
 alias audio='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/audio'
-
+alias filesystem='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/filesystem'
 ```
 
 
@@ -83,3 +85,7 @@ alias audio='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/
 -   **`--output`, `-o`**: Specifies the output file for the summary in Markdown format.
 -   **`src_files`**: List of source code files to summarize.
 -   **`directory`**: Directory containing source code files to summarize.
+
+### `filesystem/filesystem.py` Parameters
+
+-   **`src_files`**: List of markdown files to show.
