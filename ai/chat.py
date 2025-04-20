@@ -1,5 +1,6 @@
 from libs.chatgpt import chat_with_chatgpt
-from libs.cli import get_context_options, markdown_option, process_markdown, print_markdown
+from libs.cli import get_context_options, markdown_option
+from libs.display import display_markdown, process_markdown
 from libs.system import command_exists
 from libs.config import config
 import click
@@ -79,7 +80,7 @@ def chat(ctx, prompt, markdown):
 
         if chat_user_prompt.startswith('-md'):
             messages.append({"role": "user", "content": chat_user_prompt.split('-md')[1]})
-            print_markdown(markdown_chat())
+            display_markdown(markdown_chat())
             continue
         
         messages.append({"role": "user", "content": chat_user_prompt})

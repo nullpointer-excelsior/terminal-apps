@@ -17,6 +17,21 @@ def get_model(model: str):
     return chatgpt_models.get(model, 'gpt-4o-mini')
 
 
+def get_stream_completion(userinput, model='gpt4om', temperature=0, prompt="Eres un util asistente. Responderas de forma directa y sin explicaciones"):
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": userinput}
+    ]
+    stream = client.chat.completions.create(
+        model=get_model(model),
+        messages=messages,
+        temperature=temperature,
+        stream=True
+    )
+    for chunk in stream:
+        yield chunk.choices[0].delta
+
+
 def ask_to_chatgpt(userinput, model='gpt4om', temperature=0, prompt="Eres un util asistente. Responderas de forma directa y sin explicaciones"):
     messages = [
         {"role": "system", "content": prompt},
