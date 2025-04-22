@@ -1,5 +1,6 @@
 from openai import OpenAI
 
+
 chatgpt_models = {
     'gpt3': 'gpt-3.5-turbo',
     'gpt4': 'gpt-4',
@@ -11,17 +12,15 @@ chatgpt_models = {
     'gpt4.1m': 'gpt-4.1-mini'
 }
 
+
 client = OpenAI()
+
 
 def get_model(model: str):
     return chatgpt_models.get(model, 'gpt-4o-mini')
 
 
-def get_stream_completion(userinput, model='gpt4om', temperature=0, prompt="Eres un util asistente. Responderas de forma directa y sin explicaciones"):
-    messages = [
-        {"role": "system", "content": prompt},
-        {"role": "user", "content": userinput}
-    ]
+def get_stream_completion(messages, model='gpt4om', temperature=0):
     stream = client.chat.completions.create(
         model=get_model(model),
         messages=messages,

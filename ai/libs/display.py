@@ -1,8 +1,8 @@
 from rich.markdown import Markdown
 from rich.console import Console
-from libs.chatgpt import get_stream_completion
 from contextlib import nullcontext
 import click
+
 
 console = Console()
 
@@ -13,14 +13,14 @@ def display_markdown(content):
     print('')
 
 
-def display_highlighted_code(userinput, prompt, model, temperature):
+def display_highlighted_code(llm_stream):
     complete_response = ''
     code_buffer = ''
     waiting_for_code = False
     extract_lastline = lambda x: x.strip().split('\n')[-1]
     status_ctx = nullcontext() 
 
-    for stream in get_stream_completion(userinput, prompt=prompt, model=model, temperature=temperature):
+    for stream in llm_stream():
         stream = stream.content if stream.content is not None else ''
         complete_response += stream
 
@@ -48,6 +48,8 @@ def display_highlighted_code(userinput, prompt, model, temperature):
             print(stream, end="", flush=True)
 
     if len(code_buffer) > 1:
+        status_ctx.__exit__(None, None, None)
+        console.log("[green]✅ Code snippet ready!")
         display_markdown(code_buffer)
     
     print('\n')

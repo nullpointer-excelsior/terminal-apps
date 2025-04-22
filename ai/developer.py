@@ -22,10 +22,14 @@ Crea un mensaje de commit semántico corto en inglés basado en el siguiente dif
 @markdown_option()
 def dev(ctx, userinput, markdown):
     model, temperature = get_context_options(ctx)
+    messages = [
+        {"role": "system", "content": dev_prompt},
+        {"role": "user", "content": userinput}
+    ]
     process_markdown(
         markdown, 
         lambda: ask_to_chatgpt_no_stream(userinput, prompt=dev_prompt, model=model, temperature=temperature),
-        lambda: display_highlighted_code(userinput, prompt=dev_prompt, model=model, temperature=temperature)
+        lambda: display_highlighted_code(lambda : get_stream_completion(messages, model=model, temperature=temperature))
     )
 
 
