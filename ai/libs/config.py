@@ -5,6 +5,10 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     ai_prompt_resources: str
+    ai_sqlite_database: str
 
 
-config = Config(ai_prompt_resources=os.getenv("AI_PROMPT_RESOURCES"))
+config = Config(
+    ai_prompt_resources=os.getenv("AI_PROMPT_RESOURCES"),
+    ai_sqlite_database='sqlite:////Users/benjamin/.sqlite/ai.db'#os.getenv("AI_SQLITE_DATABASE")
+)
