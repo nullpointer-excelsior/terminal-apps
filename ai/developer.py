@@ -1,7 +1,7 @@
-from libs.database import ChatSessionRepository, Message, create_orm_session, Session
+from libs.database import ChatSessionRepository, Message, create_orm_session
 from libs.chatgpt import ask_simple_question_to_chatgpt, chat_with_chatgpt, get_stream_completion
 from libs.cli import userinput_argument, get_context_options, copy_option, markdown_option
-from libs.display import process_markdown, display_highlighted_code, display_markdown
+from libs.display import display_highlighted_code, display_markdown
 from libs.config import config
 import click
 import subprocess
@@ -9,7 +9,7 @@ import pyperclip
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable
+
 
 dev_prompt="""
 Eres un útil asistente y experto desarrollador y arquitecto de software. Responderás de forma directa y sin explicaciones.

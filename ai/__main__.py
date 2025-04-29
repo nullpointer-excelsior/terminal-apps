@@ -1,10 +1,11 @@
-import click
-from text import grammar, translate, question, summarize, transcribe
+from chat import chat
 from developer import dev, commit_generator
 from english import english
-from screenshot import screenshot
-from chat import chat
 from libs.cli import model_option, temperature_option
+from screenshot import screenshot
+from session import sessions
+from text import grammar, translate, question, summarize, transcribe
+import click
 
 
 @click.group(help='Herramientas de AI para terminal bash')
@@ -26,5 +27,6 @@ cli.add_command(screenshot)
 cli.add_command(commit_generator)
 cli.add_command(chat)
 cli.add_command(transcribe)
+cli.add_command(sessions)
 
 cli()

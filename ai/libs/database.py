@@ -47,20 +47,9 @@ class ChatSessionRepository:
         self.db_session = db_session
 
     def create(self, workspace, assistant, messages):
-        """
-        Crea una nueva sesión y sus mensajes asociados.
-
-        Args:
-            workspace (str): Nombre del workspace.
-            assistant (str): Nombre del assistant.
-            messages (list[dict]): Lista de mensajes, cada uno con 'timestamp', 'content', 'role'.
-
-        Returns:
-            Session: La instancia de la sesión creada.
-        """
         session_obj = Session(workspace=workspace, assistant=assistant)
         self.db_session.add(session_obj)
-        self.db_session.flush()  # Para obtener el id de la sesión
+        self.db_session.flush()
 
         for msg in messages:
             message_obj = Message(
@@ -75,28 +64,16 @@ class ChatSessionRepository:
         return session_obj
 
     def find_by_workspace_and_assistant(self, workspace, assistant):
-        """
-        Encuentra sesiones por workspace y assistant.
-
-        Args:
-            workspace (str): Nombre del workspace.
-            assistant (str): Nombre del assistant.
-
-        Returns:
-            list[Session]: Lista de sesiones que coinciden con los criterios.
-        """
         return self.db_session.query(Session).filter_by(workspace=workspace, assistant=assistant).first()
+    
+    
+    def find_by_workspace(self, workspace):
+        return self.db_session.query(Session).filter_by(workspace=workspace).all()
+
+    def find_all(self):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+        return self.db_session.query(Session).all()
 
     def update(self, session):
-        """
-        Actualiza una sesión existente en la base de datos.
-
-        Args:
-            session (Session): La instancia de la sesión a actualizar.
-
-        Returns:
-            Session: La sesión actualizada.
-        """
         existing_session = self.db_session.query(Session).filter_by(id=session.id).first()
         if existing_session:
             existing_session.workspace = session.workspace
@@ -107,3 +84,14 @@ class ChatSessionRepository:
             return existing_session
         else:
             raise ValueError("Session not found")
+        
+    def get_session_by_id(self, session_id):
+        return self.db_session.query(Session).filter_by(id=session_id).first()
+
+    def delete_session_by_id(self, session_id):
+        session = self.get_session_by_id(session_id)
+        if session:
+            self.db_session.delete(session)
+            self.db_session.commit()
+            return True
+        return False
