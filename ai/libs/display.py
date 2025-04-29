@@ -2,6 +2,8 @@ from rich.markdown import Markdown
 from rich.console import Console
 from contextlib import nullcontext
 import click
+from abc import ABC, abstractmethod
+from libs.chatgpt import chat_with_chatgpt, get_stream_completion
 
 
 console = Console()
@@ -64,3 +66,32 @@ def process_markdown(markdown: bool, with_markdown, no_markdown):
         return response
     else:
         return no_markdown()
+    
+
+class LLMCallStrategy(ABC):
+
+    @abstractmethod
+    def request(self, messages, model, temperature) -> str:
+        pass
+
+
+class SessionStrategy(ABC):
+
+    @abstractmethod
+    def request(self) -> str:
+        pass
+
+
+class HighlightedCodeDisplayStrategy(LLMCallStrategy):
+
+    def request(self, messages, model, temperature):
+        return display_highlighted_code(lambda: get_stream_completion(messages, model=model, temperature=temperature))
+
+
+class MarkdowDisplayStrategy(LLMCallStrategy):
+
+    def request(self, messages, model, temperature):
+        click.echo(click.style('\n🔄 Waiting for the complete answer from OpenAI...', fg='cyan', bold=True, underline=True))
+        response = chat_with_chatgpt(messages, model=model, temperature=temperature, stream=False)
+        display_markdown(response)
+        return response

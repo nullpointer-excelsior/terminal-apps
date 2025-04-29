@@ -1,5 +1,7 @@
 import click
 import pyperclip
+from libs.display import HighlightedCodeDisplayStrategy
+from libs.session import WithSessionStrategy, WithoutSessionStrategy
 from libs.cli import copy_option, userinput_argument, get_context_options
 from libs.chatgpt import ask_to_chatgpt, transcribe_audio
 
@@ -46,9 +48,31 @@ def translate(ctx, userinput, copy):
 @click.command(help='Pregunta a ChatGPT')
 @click.pass_context
 @userinput_argument()
-def question(ctx, userinput):
+@click.option('-s', '--session', is_flag=True, help="Crea u obtiene una sesión.")
+def question(ctx, userinput, session):
     model, temperature = get_context_options(ctx)
-    ask_to_chatgpt(userinput, prompt=question_prompt, model=model, temperature=temperature)
+
+    llmcall = HighlightedCodeDisplayStrategy()
+
+    if session:
+        session_strategy = WithSessionStrategy(
+            userinput=userinput,
+            systemprompt=question_prompt,
+            model=model,
+            temperature=temperature,
+            llmcall=llmcall,
+            assistant='question'
+        ) 
+    else: 
+        session_strategy = WithoutSessionStrategy(
+            userinput=userinput,
+            systemprompt=question_prompt,
+            model=model,
+            temperature=temperature,
+            llmcall=llmcall
+        )
+    
+    session_strategy.request()
 
 
 def get_instructions(words, sentences, tone, audience, style, markdown, translate):
