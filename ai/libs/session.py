@@ -64,26 +64,3 @@ class WithoutSessionStrategy(SessionStrategy):
         ]
         return self.llmcall.request(messages, model=self.model, temperature=self.temperature)
 
-
-
-def session_factory(is_markdown, is_session, userinput, systemprompt, model, temperature):
-    
-    llmcall = MarkdowDisplayStrategy() if is_markdown else HighlightedCodeDisplayStrategy()
-
-    if is_session:
-        return WithSessionStrategy(
-            userinput=userinput,
-            systemprompt=systemprompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall,
-            assistant='dev'
-        ) 
-    else: 
-        return WithoutSessionStrategy(
-            userinput=userinput,
-            systemprompt=systemprompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall
-        )
