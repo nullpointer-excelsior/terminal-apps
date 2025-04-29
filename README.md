@@ -12,7 +12,7 @@ This repository contains a collection of command-line tools powered by AI, desig
     -   `english`: An English language tutor.
     -   `summarize`: Summarize text with customizable parameters.
     -   `screenshot`: Capture screenshots and process them with AI.
-    -   `commit_generator`: Generate semantic commit messages.
+    -   `commit-generator`: Generate semantic commit messages.
     -   `chat`: Interactive chat sessions with ChatGPT.
     -   `transcribe`: Transcribe audio files to text.
 -   **`audio`**: Tools for recording and manipulating audio.
@@ -75,6 +75,12 @@ alias filesystem='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-
 -   **`--translate`, `-tr`**: Translates the summary if necessary.
 -   **`--transcription-model`, `-tm`**: Selects the transcription model.
 -   **`--language`, `-l`**: Selects the language of the audio to transcribe.
+
+### `dev/developer.py` Parameters
+
+-   **`--session`, `-s`**: Creates or retrieves a session for the developer assistant.
+-   **`userinput`**: Input text for the developer assistant to process.
+-   **`--markdown`**: Formats the output as Markdown.
 
 ### `audio/recorder.py` Parameters
 
