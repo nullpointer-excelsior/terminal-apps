@@ -5,12 +5,20 @@ from libs.display import HighlightedCodeDisplayStrategy, MarkdowDisplayStrategy
 import click
 import subprocess
 import pyperclip
-
+import os
 
 dev_prompt="""
 Eres un útil asistente y experto desarrollador y arquitecto de software. Responderás de forma directa y sin explicaciones.
 """
 
+dev_prompt_with_context_files="""
+Eres un útil asistente y experto desarrollador y arquitecto de software. 
+
+## INSTRUCIONES
+- Responderás de forma directa y sin explicaciones.
+- Considera los siguientes archivos: {files} los cuales tienen el siguiente contenido:
+{content}
+"""
 
 commit_generator_prompt="""
 Crea un mensaje de commit semántico corto en inglés basado en el siguiente diff:
@@ -18,20 +26,48 @@ Crea un mensaje de commit semántico corto en inglés basado en el siguiente dif
 """
 
 
+def create_context_files(file_paths):
+    markdown_content = "## Content files\n"
+    for file_path in file_paths:
+        file_name = os.path.basename(file_path)
+        markdown_content += f"**{file_name}**\n"
+        try:
+            with open(file_path, 'r') as file:
+                content = file.read()
+                extension = os.path.splitext(file_name)[1][1:]
+                markdown_content += f"```{extension}\n{content}\n```\n"
+        except Exception as e:
+            markdown_content += f"Error reading file: {e}\n"
+    return markdown_content
+
+
+def system_prompt_factory(files):
+    if files:
+        content = create_context_files(files)
+        return dev_prompt_with_context_files.format(files=', '.join(files), content=content)
+    return dev_prompt
+
+
+def display_strategy(markdown):
+    return MarkdowDisplayStrategy() if markdown else HighlightedCodeDisplayStrategy()
+
+
 @click.command(help='Desarrollador experto')
 @click.pass_context
 @userinput_argument()
 @markdown_option()
 @click.option('-s', '--session', is_flag=True, help="Crea u obtiene una sesión.")
-def dev(ctx, userinput, markdown, session):
-    model, temperature = get_context_options(ctx)
+@click.option('-f', '--file', multiple=True, help="Archivo como contexto")
+def dev(ctx, userinput, markdown, session, file):
 
-    llmcall = MarkdowDisplayStrategy() if markdown else HighlightedCodeDisplayStrategy()
+    model, temperature = get_context_options(ctx)
+    systemprompt = system_prompt_factory(file)
+    llmcall = display_strategy(markdown)
 
     if session:
         session_strategy = WithSessionStrategy(
             userinput=userinput,
-            systemprompt=dev_prompt,
+            systemprompt=systemprompt,
             model=model,
             temperature=temperature,
             llmcall=llmcall,
@@ -40,15 +76,13 @@ def dev(ctx, userinput, markdown, session):
     else: 
         session_strategy = WithoutSessionStrategy(
             userinput=userinput,
-            systemprompt=dev_prompt,
+            systemprompt=systemprompt,
             model=model,
             temperature=temperature,
             llmcall=llmcall
         )
 
     session_strategy.request()
-
-
 
 
 @click.command(help='Generador de commit')
