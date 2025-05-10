@@ -1,5 +1,5 @@
 from libs.database import ChatSessionRepository, Message, create_orm_session
-from libs.display import HighlightedCodeDisplayStrategy, LLMCallStrategy, MarkdowDisplayStrategy
+from libs.display import LLMCallStrategy
 from libs.config import config
 import os
 from abc import ABC, abstractmethod

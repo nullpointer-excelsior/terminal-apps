@@ -11,13 +11,11 @@ dev_prompt="""
 Eres un útil asistente y experto desarrollador y arquitecto de software. Responderás de forma directa y sin explicaciones.
 """
 
-dev_prompt_with_context_files="""
-Eres un útil asistente y experto desarrollador y arquitecto de software. 
-
-## INSTRUCIONES
-- Responderás de forma directa y sin explicaciones.
-- Considera los siguientes archivos: {files} los cuales tienen el siguiente contenido:
+userinput_with_files="""
+Tengo los siguientes archivos:
 {content}
+Responde lo siguiente:
+{input}
 """
 
 commit_generator_prompt="""
@@ -41,11 +39,11 @@ def create_context_files(file_paths):
     return markdown_content
 
 
-def system_prompt_factory(files):
+def userinput_factory(userinput, files):
     if files:
         content = create_context_files(files)
-        return dev_prompt_with_context_files.format(files=', '.join(files), content=content)
-    return dev_prompt
+        return userinput_with_files.format(content=content, input=userinput)
+    return userinput
 
 
 def display_strategy(markdown):
@@ -61,21 +59,21 @@ def display_strategy(markdown):
 def dev(ctx, userinput, markdown, no_session, file):
 
     model, temperature = get_context_options(ctx)
-    systemprompt = system_prompt_factory(file)
+    userinput_prompt = userinput_factory(userinput, file)
     llmcall = display_strategy(markdown)
 
     if no_session:
         session_strategy = WithoutSessionStrategy(
-            userinput=userinput,
-            systemprompt=systemprompt,
+            userinput=userinput_prompt,
+            systemprompt=dev_prompt,
             model=model,
             temperature=temperature,
             llmcall=llmcall
         )
     else: 
         session_strategy = WithSessionStrategy(
-            userinput=userinput,
-            systemprompt=systemprompt,
+            userinput=userinput_prompt,
+            systemprompt=dev_prompt,
             model=model,
             temperature=temperature,
             llmcall=llmcall,
