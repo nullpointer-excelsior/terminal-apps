@@ -56,15 +56,23 @@ def display_strategy(markdown):
 @click.pass_context
 @userinput_argument()
 @markdown_option()
-@click.option('-s', '--session', is_flag=True, help="Crea u obtiene una sesión.")
+@click.option('-ns', '--no-session', is_flag=True, help="Consulta sin sesión.")
 @click.option('-f', '--file', multiple=True, help="Archivo como contexto")
-def dev(ctx, userinput, markdown, session, file):
+def dev(ctx, userinput, markdown, no_session, file):
 
     model, temperature = get_context_options(ctx)
     systemprompt = system_prompt_factory(file)
     llmcall = display_strategy(markdown)
 
-    if session:
+    if no_session:
+        session_strategy = WithoutSessionStrategy(
+            userinput=userinput,
+            systemprompt=systemprompt,
+            model=model,
+            temperature=temperature,
+            llmcall=llmcall
+        )
+    else: 
         session_strategy = WithSessionStrategy(
             userinput=userinput,
             systemprompt=systemprompt,
@@ -73,14 +81,6 @@ def dev(ctx, userinput, markdown, session, file):
             llmcall=llmcall,
             assistant='dev'
         ) 
-    else: 
-        session_strategy = WithoutSessionStrategy(
-            userinput=userinput,
-            systemprompt=systemprompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall
-        )
 
     session_strategy.request()
 
