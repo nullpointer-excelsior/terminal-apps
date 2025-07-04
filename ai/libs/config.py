@@ -10,5 +10,5 @@ class Config:
 
 config = Config(
     ai_prompt_resources=os.getenv("AI_PROMPT_RESOURCES"),
-    ai_sqlite_database='sqlite:////Users/benjamin/.sqlite/ai.db'#os.getenv("AI_SQLITE_DATABASE")
+    ai_sqlite_database=os.getenv("AI_SQLITE_DATABASE")
 )

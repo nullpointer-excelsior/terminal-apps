@@ -4,3 +4,4 @@ openai==1.68.2
 sounddevice==0.5.1
 soundfile==0.13.1
 SQLAlchemy==2.0.40
+rich==14.0.0
