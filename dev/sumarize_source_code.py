@@ -21,7 +21,7 @@ def source_code_content(src_files):
     for src in src_files:
         file_ext = get_file_type(src)
         content_code = Path(src).read_text()
-        content.append(f"**{src}**\n\n```{file_ext}\n{content_code}\n```")
+        content.append(f"**{src}**\n\n```{file_ext}\n{content_code}\n```\n")
     return "\n".join(content)
 
 
@@ -34,18 +34,6 @@ def filter_source_code_files(src_files):
             continue
         filtered.append(file)
     return filtered
-
-
-def summary_source_code(src_files):
-    summary = []
-    source_list = source_code_list(src_files)
-    source_content = source_code_content(src_files)
-    summary.append("# Code Summary\n")
-    summary.append("## File list\n")
-    summary.append(source_list)
-    summary.append("\n ## File content")
-    summary.append(source_content)
-    return "\n".join(summary)
 
 
 def get_directory_files(directory):
@@ -61,7 +49,7 @@ def get_directory_files(directory):
 @click.argument("src_files", nargs=-1)
 def summarize_sources(output, src_files):
     src_files_filtered = filter_source_code_files(src_files)
-    summary = summary_source_code(src_files_filtered)
+    summary = source_code_content(src_files_filtered)
     if output:
         Path(f"{output}.md").write_text(summary)
     else:
@@ -74,7 +62,7 @@ def summarize_sources(output, src_files):
 def summarize_dir(output, directory):
     src_files = get_directory_files(directory)
     src_files_filtered = filter_source_code_files(src_files)
-    summary = summary_source_code(src_files_filtered)
+    summary = source_code_content(src_files_filtered)
     if output:
         Path(f"{output}.md").write_text(summary)
     else:
