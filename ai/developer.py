@@ -1,5 +1,5 @@
 from libs.session import WithSessionStrategy, WithoutSessionStrategy
-from libs.chatgpt import ask_simple_question_to_chatgpt
+from libs.chatgpt import ask_simple_question_to_chatgpt, chat_with_chatgpt
 from libs.cli import userinput_argument, get_context_options, copy_option, markdown_option
 from libs.display import HighlightedCodeDisplayStrategy, MarkdowDisplayStrategy
 import click
@@ -19,8 +19,7 @@ Responde lo siguiente:
 """
 
 commit_generator_prompt="""
-Crea un mensaje de commit semántico corto en inglés basado en el siguiente diff:
-{diff}
+Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario
 """
 
 
@@ -83,17 +82,40 @@ def dev(ctx, userinput, markdown, no_session, file):
     session_strategy.request()
 
 
+def execute_git_diff():
+    try:
+        subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], check=True, stdout=subprocess.DEVNULL)
+        return subprocess.run(["git", "diff", "--cached"], check=True, text=True, capture_output=True).stdout
+    except subprocess.CalledProcessError:
+        pass
+
+def execute_git_commit(message:str):
+    try:
+        return subprocess.run(["git", "commit","-m", message.strip()], check=True, text=True, capture_output=True).stdout
+    except subprocess.CalledProcessError as e:
+        print(str(e))
+        pass
+
 @click.command(help='Generador de commit')
 @click.pass_context
 @copy_option()
 def commit_generator(ctx, copy):
     model, temperature = get_context_options(ctx)
-    try:
-        subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], check=True, stdout=subprocess.DEVNULL)
-        diff = subprocess.run(["git", "diff", "--cached"], check=True, text=True, capture_output=True)
-        prompt_diff = commit_generator_prompt.format(diff=diff)
-        response = ask_simple_question_to_chatgpt(prompt_diff, model=model, temperature=temperature)
-        if copy:
-            pyperclip.copy(response)
-    except subprocess.CalledProcessError:
-        pass
+    diff = execute_git_diff()
+    messages = [
+        {"role": "system", "content": "Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario. Quiero solo el mensaje en texto, No agregues caracteres como '```'"},
+        {"role": "user", "content": f"Genera el commit message para el siguiente diff: {diff}"}
+    ]
+
+    print("\033[33m")
+    response = chat_with_chatgpt(messages, model=model, temperature=temperature)
+    print("\033[0m")
+
+    while not click.confirm(click.style('Do you want to confirm this message commit?', fg='green')):
+        messages.append({"role": "user", "content": f"Este mensaje no me convence: {response} Cambialo porfavor"})
+        print("\033[33m")
+        response = chat_with_chatgpt(messages, model=model, temperature=temperature)
+        print("\033[0m")
+
+    stdout = execute_git_commit(response)
+    print(f"\n{stdout}")
