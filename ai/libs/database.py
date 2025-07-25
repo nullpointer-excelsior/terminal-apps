@@ -35,7 +35,7 @@ class Message(Base):
 
 
 def create_orm_session(sqlitepath):
-    engine = create_engine(sqlitepath, echo=False) # sqlite:///path_to_your_database.db
+    engine = create_engine(f"sqlite:///{sqlitepath}", echo=False) # sqlite:///path_to_your_database.db
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return SessionLocal()
