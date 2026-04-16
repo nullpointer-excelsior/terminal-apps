@@ -82,27 +82,28 @@ def commit_generator(ctx, copy):
     if not diff:
         click.echo("No staged changes found or not a git repository.")
         return
-
-    # Use a prompt from resources if needed, but for now we keep the inline logic migrated to invoke_llm
-    # The instructions mentioned: "Ensure prompt loading uses the AI_PROMPT_RESOURCES path from config"
-    # Currently it's inline, but let's see if we should load from file.
-    # For now, migrating to use invoke_llm (stateless).
     
     system_message = "Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario. Quiero solo el mensaje en texto, No agregues caracteres como '```'"
     prompt = f"Genera el commit message para el siguiente diff: {diff}"
 
-    print("\033[33m")
-    response = invoke_llm(prompt, model=model, system_message=system_message)
+    print("\033[33m", end="", flush=True)
+    response = ""
+    for chunk in invoke_llm_stream(prompt, model=model, system_message=system_message):
+        print(chunk, end="", flush=True)
+        response += chunk
     print("\033[0m")
-    click.echo(f"Proposed commit message: {response}")
+    click.echo(f"\nProposed commit message: {response}")
 
     while not click.confirm(click.style('Do you want to confirm this message commit?', fg='green')):
         feedback = click.prompt("What should be changed?", default="Change it please")
         prompt = f"Este mensaje no me convence: {response}. Feedback: {feedback}. Genera uno nuevo para este diff: {diff}"
-        print("\033[33m")
-        response = invoke_llm(prompt, model=model, system_message=system_message)
+        print("\033[33m", end="", flush=True)
+        response = ""
+        for chunk in invoke_llm_stream(prompt, model=model, system_message=system_message):
+            print(chunk, end="", flush=True)
+            response += chunk
         print("\033[0m")
-        click.echo(f"Proposed commit message: {response}")
+        click.echo(f"\nProposed commit message: {response}")
 
     stdout = execute_git_commit(response)
     if stdout:

@@ -90,7 +90,9 @@ class HighlightedCodeDisplayStrategy(LLMCallStrategy):
 class MarkdownDisplayStrategy(LLMCallStrategy):
 
     def request(self, prompt, model, system_message):
-        click.echo(click.style('\n🔄 Waiting for the answer...', fg='cyan', bold=True, underline=True))
-        response = invoke_llm(prompt, model=model, system_message=system_message)
+        click.echo(click.style('\n🔄 Streaming answer...', fg='cyan', bold=True, underline=True))
+        response = ""
+        for chunk in invoke_llm_stream(prompt, model=model, system_message=system_message):
+            response += chunk
         display_markdown(response)
         return response

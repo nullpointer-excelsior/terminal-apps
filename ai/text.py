@@ -27,8 +27,11 @@ Eres un útil asistente. Responderás de forma directa y sin explicaciones a men
 def grammar(ctx, userinput, copy):
     model = get_context_options(ctx)
     prompt = grammar_prompt.format(userinput=userinput)
-    response = invoke_llm(prompt, model=model)
-    click.echo(response)
+    response = ""
+    for chunk in invoke_llm_stream(prompt, model=model):
+        print(chunk, end="", flush=True)
+        response += chunk
+    print()  # New line after streaming
     if copy:
         pyperclip.copy(response)
 
@@ -40,8 +43,11 @@ def grammar(ctx, userinput, copy):
 def translate(ctx, userinput, copy):
     prompt = translate_prompt.format(text=userinput)
     model = get_context_options(ctx)
-    response = invoke_llm(prompt, model=model)
-    click.echo(response)
+    response = ""
+    for chunk in invoke_llm_stream(prompt, model=model):
+        print(chunk, end="", flush=True)
+        response += chunk
+    print()  # New line after streaming
     if copy:
         pyperclip.copy(response)
 
