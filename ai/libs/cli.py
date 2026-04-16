@@ -1,6 +1,6 @@
 import sys
 import click
-from libs.chatgpt import chatgpt_models
+from libs.llm import DEFAULT_MODEL, MODEL_ALIASES
 
 
 def get_argument_or_stdin(ctx, param, value):
@@ -17,25 +17,18 @@ def userinput_argument():
     return decorator
 
 
-def model_option(model='gpt4om'):
-    model_choices= list(chatgpt_models.keys())
+def model_option(model=DEFAULT_MODEL):
+    help_text = (
+        f"AI model to use. Format: 'provider:model' or use an alias. "
+        f"Aliases: {', '.join(MODEL_ALIASES.keys())}. "
+        f"Default: {DEFAULT_MODEL}"
+    )
     def decorator(wrapped_function):
         return click.option(
             '--model', '-m',
-            type=click.Choice(model_choices, case_sensitive=False),
+            type=str,
             default=model,
-            help='Indica el modelo AI a usar'
-        )(wrapped_function)
-    return decorator
-
-
-def temperature_option(temperature=0):
-    def decorator(wrapped_function):
-        return click.option(
-            '--temperature', '-t',
-            type=float, 
-            help='Temperatura del modelo. Entre 0 y 2. Los valores más altos como 0.8 harán que la salida sea más aleatoria, mientras que los valores más bajos como 0.2 la harán más enfocada y determinista.', 
-            default=temperature
+            help=help_text
         )(wrapped_function)
     return decorator
 
@@ -54,5 +47,4 @@ def markdown_option():
 
 def get_context_options(ctx):
     model = ctx.obj["model"]
-    temperature = ctx.obj["temperature"]
-    return model, temperature
+    return model

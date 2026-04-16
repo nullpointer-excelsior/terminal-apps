@@ -3,7 +3,7 @@ from rich.console import Console
 from contextlib import nullcontext
 import click
 from abc import ABC, abstractmethod
-from libs.chatgpt import chat_with_chatgpt, get_stream_completion
+from libs.llm import invoke_llm, invoke_llm_stream
 
 
 console = Console()
@@ -15,16 +15,15 @@ def display_markdown(content):
     print('')
 
 
-def display_highlighted_code(llm_stream):
+def display_highlighted_code(llm_stream_generator):
     complete_response = ''
     code_buffer = ''
     waiting_for_code = False
     extract_lastline = lambda x: x.strip().split('\n')[-1]
     status_ctx = nullcontext() 
 
-    for stream in llm_stream():
-        stream = stream.content if stream.content is not None else ''
-        complete_response += stream
+    for chunk in llm_stream_generator:
+        complete_response += chunk
 
         if complete_response != '' and complete_response[-1] == '\n' and not waiting_for_code:
             last_line = extract_lastline(complete_response)
@@ -36,7 +35,7 @@ def display_highlighted_code(llm_stream):
                 status_ctx.__enter__()
                 
         if waiting_for_code:
-            code_buffer += stream
+            code_buffer += chunk
             if code_buffer != '' and code_buffer[-1] == '\n':
                 last_line = extract_lastline(code_buffer)
                 if "```" == last_line.strip():
@@ -47,7 +46,7 @@ def display_highlighted_code(llm_stream):
                     code_buffer = ''
                     
         if not waiting_for_code and "``" not in extract_lastline(complete_response):
-            print(stream, end="", flush=True)
+            print(chunk, end="", flush=True)
 
     if len(code_buffer) > 1:
         status_ctx.__exit__(None, None, None)
@@ -71,7 +70,7 @@ def process_markdown(markdown: bool, with_markdown, no_markdown):
 class LLMCallStrategy(ABC):
 
     @abstractmethod
-    def request(self, messages, model, temperature) -> str:
+    def request(self, prompt, model, system_message) -> str:
         pass
 
 
@@ -84,14 +83,14 @@ class SessionStrategy(ABC):
 
 class HighlightedCodeDisplayStrategy(LLMCallStrategy):
 
-    def request(self, messages, model, temperature):
-        return display_highlighted_code(lambda: get_stream_completion(messages, model=model, temperature=temperature))
+    def request(self, prompt, model, system_message):
+        return display_highlighted_code(invoke_llm_stream(prompt, model=model, system_message=system_message))
 
 
-class MarkdowDisplayStrategy(LLMCallStrategy):
+class MarkdownDisplayStrategy(LLMCallStrategy):
 
-    def request(self, messages, model, temperature):
-        click.echo(click.style('\n🔄 Waiting for the complete answer from OpenAI...', fg='cyan', bold=True, underline=True))
-        response = chat_with_chatgpt(messages, model=model, temperature=temperature, stream=False)
+    def request(self, prompt, model, system_message):
+        click.echo(click.style('\n🔄 Waiting for the answer...', fg='cyan', bold=True, underline=True))
+        response = invoke_llm(prompt, model=model, system_message=system_message)
         display_markdown(response)
         return response

@@ -1,10 +1,12 @@
-from libs.chatgpt import ask_to_chatgpt, get_model
+from libs.llm import invoke_llm_structured
 from libs.cli import copy_option, userinput_argument, get_context_options
 import click
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
-from openai import OpenAI
 import pyperclip
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
 
 
 prompt_base="""
@@ -26,30 +28,11 @@ Eres un experto tutor de inglés y ayudarás al usuario a aprender inglés sigui
 """
 
 
-client = OpenAI()
-
-
 class EnglishTutorResponse(BaseModel):
-    corrected_text: str
-    corrections: List[str]
-    errors: List[str]
-    suggestions: List[str]
-
-
-def structured_output(input, model, temperature):
-    completion = client.beta.chat.completions.parse(
-        model=get_model(model),
-        messages=[
-            {"role": "system", "content": prompt_base},
-            {
-                "role": "user",
-                "content": input,
-            },
-        ],
-        response_format=EnglishTutorResponse,
-        temperature=temperature
-    )
-    return completion.choices[0].message
+    corrected_text: str = Field(description="The full corrected text or translation.")
+    corrections: List[str] = Field(description="List of specific corrections made.")
+    errors: List[str] = Field(description="List of grammatical or vocabulary errors found.")
+    suggestions: List[str] = Field(description="Suggestions to improve the flow or sound more natural.")
 
 
 @click.command(help='Profesor de inglés')
@@ -57,26 +40,40 @@ def structured_output(input, model, temperature):
 @userinput_argument()
 @copy_option()
 def english(ctx, userinput, copy):
-    model, temperature = get_context_options(ctx)
+    model, _ = get_context_options(ctx)
+    console = Console()
 
-    response = structured_output(userinput, model, temperature)
+    with console.status("[bold green]Pensando..."):
+        response: EnglishTutorResponse = invoke_llm_structured(
+            prompt=userinput,
+            output_schema=EnglishTutorResponse,
+            model=model,
+            system_message=prompt_base
+        )
 
-    if (response.refusal):
-        click.secho("Response refused", fg='red', bold=True)
-        click.secho(response.refusal, fg='red')
-    else:
-        click.secho(f"\n{response.parsed.corrected_text}\n", fg='green')
-        click.secho("Corrections:", fg='blue', bold=True)
-        for c in response.parsed.corrections:
-            click.secho(f"- {c}", fg='blue')
-        
-        click.secho("Errors:", fg='red', bold=True)
-        for e in response.parsed.errors:
-            click.secho(f"- {e}", fg='red')
-        
-        click.secho("Suggestions:", fg='yellow', bold=True)
-        for s in response.parsed.suggestions:
-            click.secho(f"- {s}", fg='yellow')
-        print()
-        if copy:
-            pyperclip.copy(response.parsed.corrected_text)            
+    # Render corrected text prominently
+    console.print(Panel(
+        Text(response.corrected_text, style="bold green"),
+        title="[bold green]Corrected Text",
+        border_style="green"
+    ))
+
+    if response.corrections:
+        console.print("\n[bold blue]Corrections:")
+        for c in response.corrections:
+            console.print(f" [blue]•[/blue] {c}")
+
+    if response.errors:
+        console.print("\n[bold red]Errors:")
+        for e in response.errors:
+            console.print(f" [red]•[/red] {e}")
+
+    if response.suggestions:
+        console.print("\n[bold yellow]Suggestions:")
+        for s in response.suggestions:
+            console.print(f" [yellow]•[/yellow] {s}")
+    
+    console.print()
+
+    if copy:
+        pyperclip.copy(response.corrected_text)

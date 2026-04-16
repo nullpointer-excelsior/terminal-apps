@@ -5,10 +5,10 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     ai_prompt_resources: str
-    ai_sqlite_database: str
+    google_api_key: str
 
 
 config = Config(
     ai_prompt_resources=os.getenv("AI_PROMPT_RESOURCES"),
-    ai_sqlite_database=os.getenv("AI_SQLITE_DATABASE")
+    google_api_key=os.getenv("GOOGLE_API_KEY")
 )

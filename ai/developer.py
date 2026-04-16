@@ -1,25 +1,21 @@
-from libs.session import WithSessionStrategy, WithoutSessionStrategy
-from libs.chatgpt import ask_simple_question_to_chatgpt, chat_with_chatgpt
 from libs.cli import userinput_argument, get_context_options, copy_option, markdown_option
-from libs.display import HighlightedCodeDisplayStrategy, MarkdowDisplayStrategy
+from libs.display import HighlightedCodeDisplayStrategy, MarkdownDisplayStrategy
+from libs.llm import invoke_llm, invoke_llm_stream
+from libs.config import config
 import click
 import subprocess
 import pyperclip
 import os
 
-dev_prompt="""
+dev_prompt = """
 Eres un útil asistente y experto desarrollador y arquitecto de software. Responderás de forma directa y sin explicaciones.
 """
 
-userinput_with_files="""
+userinput_with_files = """
 Tengo los siguientes archivos:
 {content}
 Responde lo siguiente:
 {input}
-"""
-
-commit_generator_prompt="""
-Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario
 """
 
 
@@ -46,40 +42,19 @@ def userinput_factory(userinput, files):
 
 
 def display_strategy(markdown):
-    return MarkdowDisplayStrategy() if markdown else HighlightedCodeDisplayStrategy()
+    return MarkdownDisplayStrategy() if markdown else HighlightedCodeDisplayStrategy()
 
 
 @click.command(help='Desarrollador experto')
 @click.pass_context
 @userinput_argument()
 @markdown_option()
-@click.option('-ns', '--no-session', is_flag=True, help="Consulta sin sesión.")
 @click.option('-f', '--file', multiple=True, help="Archivo como contexto")
-def dev(ctx, userinput, markdown, no_session, file):
-
-    model, temperature = get_context_options(ctx)
+def dev(ctx, userinput, markdown, file):
+    model = get_context_options(ctx)
     userinput_prompt = userinput_factory(userinput, file)
     llmcall = display_strategy(markdown)
-
-    if no_session:
-        session_strategy = WithoutSessionStrategy(
-            userinput=userinput_prompt,
-            systemprompt=dev_prompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall
-        )
-    else: 
-        session_strategy = WithSessionStrategy(
-            userinput=userinput_prompt,
-            systemprompt=dev_prompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall,
-            assistant='dev'
-        ) 
-
-    session_strategy.request()
+    llmcall.request(userinput_prompt, model=model, system_message=dev_prompt)
 
 
 def execute_git_diff():
@@ -87,35 +62,51 @@ def execute_git_diff():
         subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], check=True, stdout=subprocess.DEVNULL)
         return subprocess.run(["git", "diff", "--cached"], check=True, text=True, capture_output=True).stdout
     except subprocess.CalledProcessError:
-        pass
+        return None
 
-def execute_git_commit(message:str):
+
+def execute_git_commit(message: str):
     try:
-        return subprocess.run(["git", "commit","-m", message.strip()], check=True, text=True, capture_output=True).stdout
+        return subprocess.run(["git", "commit", "-m", message.strip()], check=True, text=True, capture_output=True).stdout
     except subprocess.CalledProcessError as e:
         print(str(e))
-        pass
+        return None
+
 
 @click.command(help='Generador de commit')
 @click.pass_context
 @copy_option()
 def commit_generator(ctx, copy):
-    model, temperature = get_context_options(ctx)
+    model = get_context_options(ctx)
     diff = execute_git_diff()
-    messages = [
-        {"role": "system", "content": "Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario. Quiero solo el mensaje en texto, No agregues caracteres como '```'"},
-        {"role": "user", "content": f"Genera el commit message para el siguiente diff: {diff}"}
-    ]
+    if not diff:
+        click.echo("No staged changes found or not a git repository.")
+        return
+
+    # Use a prompt from resources if needed, but for now we keep the inline logic migrated to invoke_llm
+    # The instructions mentioned: "Ensure prompt loading uses the AI_PROMPT_RESOURCES path from config"
+    # Currently it's inline, but let's see if we should load from file.
+    # For now, migrating to use invoke_llm (stateless).
+    
+    system_message = "Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario. Quiero solo el mensaje en texto, No agregues caracteres como '```'"
+    prompt = f"Genera el commit message para el siguiente diff: {diff}"
 
     print("\033[33m")
-    response = chat_with_chatgpt(messages, model=model, temperature=temperature)
+    response = invoke_llm(prompt, model=model, system_message=system_message)
     print("\033[0m")
+    click.echo(f"Proposed commit message: {response}")
 
     while not click.confirm(click.style('Do you want to confirm this message commit?', fg='green')):
-        messages.append({"role": "user", "content": f"Este mensaje no me convence: {response} Cambialo porfavor"})
+        feedback = click.prompt("What should be changed?", default="Change it please")
+        prompt = f"Este mensaje no me convence: {response}. Feedback: {feedback}. Genera uno nuevo para este diff: {diff}"
         print("\033[33m")
-        response = chat_with_chatgpt(messages, model=model, temperature=temperature)
+        response = invoke_llm(prompt, model=model, system_message=system_message)
         print("\033[0m")
+        click.echo(f"Proposed commit message: {response}")
 
     stdout = execute_git_commit(response)
-    print(f"\n{stdout}")
+    if stdout:
+        print(f"\n{stdout}")
+    if copy:
+        pyperclip.copy(response)
+

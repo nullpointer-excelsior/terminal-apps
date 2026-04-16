@@ -1,9 +1,8 @@
 import click
 import pyperclip
-from libs.display import HighlightedCodeDisplayStrategy
-from libs.session import WithSessionStrategy, WithoutSessionStrategy
+from libs.display import HighlightedCodeDisplayStrategy, MarkdownDisplayStrategy
 from libs.cli import copy_option, userinput_argument, get_context_options
-from libs.chatgpt import ask_to_chatgpt, transcribe_audio
+from libs.llm import invoke_llm, invoke_llm_stream
 
 grammar_prompt = """
 Corrije gramaticalmente el texto encerrado en triple acento grave. ```{userinput}```, no debes devolver el texto con el triple acento grave.
@@ -16,7 +15,7 @@ Traduce el siguiente texto: "{text}"
 - Si el texto que debe ser traducido al inglés contiene números, deberás escribirlos con palabras seguidos del número encerrado entre paréntesis.
 """
 
-question_prompt="""
+question_prompt = """
 Eres un útil asistente. Responderás de forma directa y sin explicaciones a menos que te indique lo contrario.
 """
 
@@ -26,9 +25,10 @@ Eres un útil asistente. Responderás de forma directa y sin explicaciones a men
 @userinput_argument()
 @copy_option()
 def grammar(ctx, userinput, copy):
-    model, temperature = get_context_options(ctx)
+    model = get_context_options(ctx)
     prompt = grammar_prompt.format(userinput=userinput)
-    response = ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
+    response = invoke_llm(prompt, model=model)
+    click.echo(response)
     if copy:
         pyperclip.copy(response)
 
@@ -39,40 +39,20 @@ def grammar(ctx, userinput, copy):
 @copy_option()
 def translate(ctx, userinput, copy):
     prompt = translate_prompt.format(text=userinput)
-    model, temperature = get_context_options(ctx)
-    response = ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
+    model = get_context_options(ctx)
+    response = invoke_llm(prompt, model=model)
+    click.echo(response)
     if copy:
-        pyperclip.copy(response) 
+        pyperclip.copy(response)
 
 
 @click.command(help='Pregunta a ChatGPT')
 @click.pass_context
 @userinput_argument()
-@click.option('-s', '--session', is_flag=True, help="Crea u obtiene una sesión.")
-def question(ctx, userinput, session):
-    model, temperature = get_context_options(ctx)
-
+def question(ctx, userinput):
+    model = get_context_options(ctx)
     llmcall = HighlightedCodeDisplayStrategy()
-
-    if session:
-        session_strategy = WithSessionStrategy(
-            userinput=userinput,
-            systemprompt=question_prompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall,
-            assistant='question'
-        ) 
-    else: 
-        session_strategy = WithoutSessionStrategy(
-            userinput=userinput,
-            systemprompt=question_prompt,
-            model=model,
-            temperature=temperature,
-            llmcall=llmcall
-        )
-    
-    session_strategy.request()
+    llmcall.request(userinput, model=model, system_message=question_prompt)
 
 
 def get_instructions(words, sentences, tone, audience, style, markdown, translate):
@@ -111,27 +91,42 @@ def get_prompt(text, instructions):
 @click.option('--tone', '-t', type=str, help='Tono del resumen', default=None)
 @click.option('--audience', '-a', type=str, help='Público objetivo del resumen', default=None)
 @click.option('--style', '-st', type=str, help='Estilo del resumen', default=None)
-@click.option('--markdown', '-md', type=str, is_flag=True, help='Formato de salida mardown')
+@click.option('--markdown', '-md', is_flag=True, help='Formato de salida mardown')
 @click.option('--translate', '-tr', is_flag=True, help='Traduce si es necesario')
-def summarize(ctx, userinput,words, sentences, tone, audience, style, markdown, translate):
+def summarize(ctx, userinput, words, sentences, tone, audience, style, markdown, translate):
     instructions = get_instructions(words, sentences, tone, audience, style, markdown, translate)
     prompt = get_prompt(userinput, instructions)
-    model, temperature = get_context_options(ctx)
-    ask_to_chatgpt(userinput, prompt=prompt, model=model, temperature=temperature)
+    model = get_context_options(ctx)
+
+    if markdown:
+        llmcall = MarkdownDisplayStrategy()
+    else:
+        llmcall = HighlightedCodeDisplayStrategy()
+
+    llmcall.request(prompt, model=model, system_message="Eres un experto sintetizando información.")
 
 
 @click.command(help='Transcribe un archivo de audio a texto')
 @userinput_argument()
 @copy_option()
-@click.option(
-    '--transcription-model', 
-    '-tm', 
-    type=click.Choice(['gpt-4o-mini-transcribe', 'gpt-4o-transcribe', 'whisper-1']), 
-    default='gpt-4o-mini-transcribe',
-    help='Modelo para transcripción default (gpt-4o-mini-transcribe)', 
-)
 @click.option('--language', '-l', type=str, help='Lenguaje default(es)', default='es')
-def transcribe(userinput, copy, transcription_model, language):
-    response = transcribe_audio(userinput, transcription_model, language)
+def transcribe(userinput, copy, language):
+    # This remains using OpenAI SDK via a simplified helper or we can move it to a dedicated audio lib if needed.
+    # For now, following instructions to migrate core commands.
+    # Note: transcribe was using transcribe_audio from chatgpt.py which is being deleted.
+    # However, Phase 5 says audio module continues to work.
+    # Let's check if we should keep a minimal version of transcribe_audio or if it's out of scope for this task.
+    # The prompt says: "Migrate text.py commands... Update transcribe()".
+    from openai import OpenAI
+    client = OpenAI()
+    with open(userinput, "rb") as audio_file:
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+            language=language
+        )
+    response = transcript.text
+    click.echo(response)
     if copy:
         pyperclip.copy(response)
+
