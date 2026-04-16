@@ -92,7 +92,6 @@ def commit_generator(ctx, copy):
         print(chunk, end="", flush=True)
         response += chunk
     print("\033[0m")
-    click.echo(f"\nProposed commit message: {response}")
 
     while not click.confirm(click.style('Do you want to confirm this message commit?', fg='green')):
         feedback = click.prompt("What should be changed?", default="Change it please")
@@ -103,7 +102,6 @@ def commit_generator(ctx, copy):
             print(chunk, end="", flush=True)
             response += chunk
         print("\033[0m")
-        click.echo(f"\nProposed commit message: {response}")
 
     stdout = execute_git_commit(response)
     if stdout:
