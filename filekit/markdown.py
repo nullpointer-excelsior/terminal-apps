@@ -34,7 +34,7 @@ def source_code_content(src_files):
     content = []
     for src in src_files:
         file_ext = get_file_type(src)
-        content_code = Path(src).read_text()
+        content_code = Path(src).read_text(encoding='utf-8')
         content.append(f"**{src}:**\n```{file_ext}\n{content_code}\n```\n")
     return "\n".join(content)
 
@@ -67,7 +67,7 @@ def mdcat(input_file):
 
 
 @click.command(help="Resume codigo fuente en formato markdown")
-@click.argument("src_filess", nargs=-1)
+@click.argument("src_files", nargs=-1)
 def mdcode_sources(src_files):
     src_files_filtered = filter_source_code_files(src_files)
     summary = source_code_content(src_files_filtered)
