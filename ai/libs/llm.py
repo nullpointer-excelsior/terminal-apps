@@ -1,6 +1,5 @@
 from typing import Generator, Any
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
@@ -10,11 +9,21 @@ MODEL_ALIASES = {
     "gpt4om": "openai:gpt-4o-mini",
     "o1": "openai:o1-preview",
     "o1m": "openai:o1-mini",
-    "gemini": "google:gemini-1.5-pro",
-    "geminim": "google:gemini-1.5-flash",
+    "gemini": "google-genai:gemini-1.5-pro",
+    "geminim": "google-genai:gemini-1.5-flash",
 }
 
 DEFAULT_MODEL = "openai:gpt-4o-mini"
+
+
+class AIInfrastructureError(Exception):
+    """Raised when LLM initialization or invocation fails.
+    
+    This wraps provider-specific exceptions (authentication errors,
+    invalid model names, rate limits, etc.) into a unified error
+    that can be handled gracefully by CLI commands.
+    """
+    pass
 
 
 def resolve_model(model_str: str) -> str:
@@ -25,21 +34,44 @@ def resolve_model(model_str: str) -> str:
 
 
 def get_llm(model: str, streaming: bool = False) -> Any:
-    """Instantiates ChatOpenAI or ChatGoogleGenerativeAI based on model string."""
+    """Instantiates a chat model using LangChain's unified factory.
+    
+    This function uses init_chat_model to create a provider-agnostic
+    chat model instance. Provider-specific imports are handled by
+    LangChain internally.
+    
+    Args:
+        model: Model string in format 'provider:model-name' or an alias
+        streaming: Whether to enable streaming mode
+        
+    Returns:
+        A LangChain chat model instance
+        
+    Raises:
+        AIInfrastructureError: When model instantiation fails
+    """
     resolved_model = resolve_model(model)
     
-    if ":" not in resolved_model:
-        # Default to openai if no provider specified
-        provider, model_name = "openai", resolved_model
-    else:
-        provider, model_name = resolved_model.split(":", 1)
-
-    if provider == "openai":
-        return ChatOpenAI(model=model_name, streaming=streaming)
-    elif provider == "google":
-        return ChatGoogleGenerativeAI(model=model_name, streaming=streaming)
-    else:
-        raise ValueError(f"Unknown provider: {provider}")
+    try:
+        # Use LangChain's unified factory for provider-agnostic instantiation
+        # The factory automatically handles provider-specific configuration
+        llm = init_chat_model(
+            model=resolved_model,
+            temperature=0.7,
+        )
+        
+        # Configure streaming if requested
+        if streaming:
+            llm.streaming = True
+            
+        return llm
+        
+    except Exception as e:
+        # Wrap provider-specific errors into user-friendly messages
+        raise AIInfrastructureError(
+            f"Failed to initialize model '{resolved_model}': {str(e)}\n"
+            f"Please check your API keys and model name."
+        ) from e
 
 
 def invoke_llm_stream(
@@ -51,19 +83,36 @@ def invoke_llm_stream(
     
     Args:
         prompt: Can be a simple string or a list of content blocks (for vision support).
+        model: Model identifier (alias or full provider:model string)
+        system_message: System prompt to set context
+        
+    Yields:
+        Text chunks as strings
+        
+    Raises:
+        AIInfrastructureError: When streaming fails
     """
-    llm = get_llm(model, streaming=True)
-    messages = [
-        SystemMessage(content=system_message),
-        HumanMessage(content=prompt),
-    ]
-    
-    for chunk in llm.stream(messages):
-        # LangChain chunks have a .content attribute
-        if hasattr(chunk, "content"):
-            yield str(chunk.content)
-        else:
-            yield str(chunk)
+    try:
+        llm = get_llm(model, streaming=True)
+        messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=prompt),
+        ]
+        
+        for chunk in llm.stream(messages):
+            # LangChain chunks have a .content attribute
+            if hasattr(chunk, "content"):
+                yield str(chunk.content)
+            else:
+                yield str(chunk)
+                
+    except AIInfrastructureError:
+        # Re-raise infrastructure errors as-is
+        raise
+    except Exception as e:
+        raise AIInfrastructureError(
+            f"Streaming failed: {str(e)}"
+        ) from e
 
 
 def invoke_llm_structured(
@@ -72,14 +121,36 @@ def invoke_llm_structured(
     model: str = DEFAULT_MODEL,
     system_message: str = "You are a helpful assistant."
 ) -> BaseModel:
-    """Returns a parsed Pydantic model."""
-    llm = get_llm(model)
-    structured_llm = llm.with_structured_output(output_schema)
-    messages = [
-        SystemMessage(content=system_message),
-        HumanMessage(content=prompt),
-    ]
-    return structured_llm.invoke(messages)
+    """Returns a parsed Pydantic model.
+    
+    Args:
+        prompt: User prompt text
+        output_schema: Pydantic model class defining the expected output structure
+        model: Model identifier (alias or full provider:model string)
+        system_message: System prompt to set context
+        
+    Returns:
+        Instance of the output_schema with parsed data
+        
+    Raises:
+        AIInfrastructureError: When structured output generation fails
+    """
+    try:
+        llm = get_llm(model)
+        structured_llm = llm.with_structured_output(output_schema)
+        messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=prompt),
+        ]
+        return structured_llm.invoke(messages)
+        
+    except AIInfrastructureError:
+        # Re-raise infrastructure errors as-is
+        raise
+    except Exception as e:
+        raise AIInfrastructureError(
+            f"Structured output generation failed: {str(e)}"
+        ) from e
 
 
 def invoke_llm(
@@ -87,11 +158,32 @@ def invoke_llm(
     model: str = DEFAULT_MODEL,
     system_message: str = "You are a helpful assistant."
 ) -> str:
-    """Non-streaming invocation that returns the full response string."""
-    llm = get_llm(model)
-    messages = [
-        SystemMessage(content=system_message),
-        HumanMessage(content=prompt),
-    ]
-    response = llm.invoke(messages)
-    return str(response.content)
+    """Non-streaming invocation that returns the full response string.
+    
+    Args:
+        prompt: User prompt text
+        model: Model identifier (alias or full provider:model string)
+        system_message: System prompt to set context
+        
+    Returns:
+        Complete response text as a string
+        
+    Raises:
+        AIInfrastructureError: When invocation fails
+    """
+    try:
+        llm = get_llm(model)
+        messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=prompt),
+        ]
+        response = llm.invoke(messages)
+        return str(response.content)
+        
+    except AIInfrastructureError:
+        # Re-raise infrastructure errors as-is
+        raise
+    except Exception as e:
+        raise AIInfrastructureError(
+            f"LLM invocation failed: {str(e)}"
+        ) from e
