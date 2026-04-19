@@ -77,7 +77,8 @@ def get_llm(model: str, streaming: bool = False) -> Any:
 def invoke_llm_stream(
     prompt: Any,
     model: str = DEFAULT_MODEL,
-    system_message: str = "You are a helpful assistant."
+    system_message: str = "You are a helpful assistant.",
+    context: Any = None
 ) -> Generator[str, None, None]:
     """Yields text chunks from the selected provider.
     
@@ -85,6 +86,7 @@ def invoke_llm_stream(
         prompt: Can be a simple string or a list of content blocks (for vision support).
         model: Model identifier (alias or full provider:model string)
         system_message: System prompt to set context
+        context: Optional CLIContext for verbose logging
         
     Yields:
         Text chunks as strings
@@ -92,6 +94,11 @@ def invoke_llm_stream(
     Raises:
         AIInfrastructureError: When streaming fails
     """
+    if context:
+        context.log(f"Calling LLM with model: {model}")
+        context.log(f"System Message: {system_message}")
+        context.log(f"Prompt type: {type(prompt)}")
+
     try:
         llm = get_llm(model, streaming=True)
         messages = [

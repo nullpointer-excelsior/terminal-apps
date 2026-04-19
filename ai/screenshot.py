@@ -3,8 +3,8 @@ import click
 import base64
 import pyperclip
 from pathlib import Path
-from libs.cli import copy_option, get_context_options
-from libs.llm import invoke_llm_stream
+from .libs.cli import copy_option, get_context_options
+from .libs.llm import invoke_llm_stream
 import tempfile
 from datetime import datetime
 
@@ -26,7 +26,7 @@ def generate_temp_capture():
     return os.path.join(temp_dir, filename)
 
 
-def process_image_query(model, prompt, base64_image):
+def process_image_query(context, prompt, base64_image):
     """Processes an image query using LangChain vision support."""
     content = [
         {"type": "text", "text": prompt},
@@ -36,42 +36,49 @@ def process_image_query(model, prompt, base64_image):
         },
     ]
     
-    response = ""
-    for chunk in invoke_llm_stream(prompt=content, model=model):
-        print(chunk, end="", flush=True)
-        response += chunk
-    print()
-    return response
+    stream = invoke_llm_stream(prompt=content, model=context.model)
+    return context.strategy.display_stream(stream)
 
 
-@click.command(help='Captura de pantalla con integración AI')
+@click.command(help='AI-integrated screen capture')
 @click.pass_context
-@click.option('-tr', '--translate', is_flag=True, help="Habilita la opción de traducción")
-@click.option('-e', '--explain', is_flag=True, help="Habilita la opción de explicación")
-@click.option('-p', '--prompt', type=str, help="Proporciona un prompt de texto")
+@click.option('-tr', '--translate', is_flag=True, help="Enable translation")
+@click.option('-e', '--explain', is_flag=True, help="Enable explanation")
+@click.option('-p', '--prompt', type=str, help="Provide a custom text prompt")
 @copy_option()
 def screenshot(ctx, translate, explain, prompt, copy):
-    model, _ = get_context_options(ctx)
+    context = ctx.obj['context']
     
     filename = generate_temp_capture()
     capture_screen(filename)
     
     if not Path(filename).exists():
-        click.echo(click.style("Capture aborted", fg='yellow'))
+        context.info("Capture aborted", fg='yellow')
         return
     
     b64 = png_to_base64(filename)
     
     if translate:
-        query = "Traduce el siguiente texto al español si el contenido está en inglés, y si el contenido está en español, tradúcelo al inglés."
+        query = "Translate the following text to Spanish if the content is in English, and if it is in Spanish, translate it to English."
     elif explain:
-        query = "Explicame que hay en la imagen"
+        query = "Explain what is in the image"
     elif prompt:
         query = prompt
     else:
-        query = "Transcribe el texto de la imagen proporcinada en texto plano."
+        query = "Transcribe the text from the provided image in plain text."
     
-    response = process_image_query(model, query, b64)
+    context.info(f"📸 Processing image with {context.model}...", fg="cyan")
+    
+    content = [
+        {"type": "text", "text": query},
+        {
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+        },
+    ]
+    
+    stream = invoke_llm_stream(prompt=content, model=context.model)
+    response = context.strategy.display_stream(stream)
     
     if copy:
         pyperclip.copy(response)

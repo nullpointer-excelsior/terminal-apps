@@ -1,20 +1,20 @@
-from libs.cli import userinput_argument, get_context_options, copy_option, markdown_option
-from libs.display import HighlightedCodeDisplayStrategy, MarkdownDisplayStrategy
-from libs.llm import invoke_llm, invoke_llm_stream
-from libs.config import config
+from .libs.cli import userinput_argument, get_context_options, copy_option, markdown_option
+from .libs.display import HighlightedCodeDisplayStrategy, MarkdownDisplayStrategy
+from .libs.llm import invoke_llm, invoke_llm_stream
+from .libs.config import config
 import click
 import subprocess
 import pyperclip
 import os
 
 dev_prompt = """
-Eres un útil asistente y experto desarrollador y arquitecto de software. Responderás de forma directa y sin explicaciones.
+You are a helpful assistant and expert software developer/architect. Respond directly and without unnecessary explanations.
 """
 
 userinput_with_files = """
-Tengo los siguientes archivos:
+I have the following files:
 {content}
-Responde lo siguiente:
+Respond to the following:
 {input}
 """
 
@@ -30,7 +30,7 @@ def create_context_files(file_paths):
                 extension = os.path.splitext(file_name)[1][1:]
                 markdown_content += f"```{extension}\n{content}\n```\n"
         except Exception as e:
-            markdown_content += f"Error reading file: {e}\n"
+            markdown_content += f"Error reading file {file_name}: {e}\n"
     return markdown_content
 
 
@@ -41,20 +41,21 @@ def userinput_factory(userinput, files):
     return userinput
 
 
-def display_strategy(markdown):
-    return MarkdownDisplayStrategy() if markdown else HighlightedCodeDisplayStrategy()
-
-
-@click.command(help='Desarrollador experto')
+@click.command(help='Expert developer')
 @click.pass_context
 @userinput_argument()
 @markdown_option()
-@click.option('-f', '--file', multiple=True, help="Archivo como contexto")
+@click.option('-f', '--file', multiple=True, help="File as context")
 def dev(ctx, userinput, markdown, file):
-    model = get_context_options(ctx)
+    context = ctx.obj['context']
     userinput_prompt = userinput_factory(userinput, file)
-    llmcall = display_strategy(markdown)
-    llmcall.request(userinput_prompt, model=model, system_message=dev_prompt)
+    
+    system_message = dev_prompt
+    if markdown:
+        system_message += " Output in Markdown format."
+
+    stream = invoke_llm_stream(userinput_prompt, model=context.model, system_message=system_message)
+    context.strategy.display_stream(stream)
 
 
 def execute_git_diff():
@@ -69,43 +70,48 @@ def execute_git_commit(message: str):
     try:
         return subprocess.run(["git", "commit", "-m", message.strip()], check=True, text=True, capture_output=True).stdout
     except subprocess.CalledProcessError as e:
-        print(str(e))
-        return None
+        return f"Error: {e}"
 
 
-@click.command(help='Generador de commit')
+@click.command(help='Commit message generator')
 @click.pass_context
 @copy_option()
 def commit_generator(ctx, copy):
-    model = get_context_options(ctx)
+    context = ctx.obj['context']
     diff = execute_git_diff()
     if not diff:
-        click.echo("No staged changes found or not a git repository.")
+        context.info("No staged changes found or not a git repository.", fg="yellow")
         return
     
-    system_message = "Crea un mensaje de commit semántico corto en inglés basado en los detalles de la salida de `git diff --cached` dado por el usuario. Quiero solo el mensaje en texto, No agregues caracteres como '```'"
-    prompt = f"Genera el commit message para el siguiente diff: {diff}"
+    system_message = "Create a short semantic commit message in English based on the details of the `git diff --cached` output provided by the user. I want only the text of the message, do not add characters like '```'"
+    prompt = f"Generate the commit message for the following diff: {diff}"
 
-    print("\033[33m", end="", flush=True)
-    response = ""
-    for chunk in invoke_llm_stream(prompt, model=model, system_message=system_message):
-        print(chunk, end="", flush=True)
-        response += chunk
-    print("\033[0m")
+    context.info("🤔 Generating commit message...", fg="yellow")
+    
+    # We'll use a local loop for the confirmation interactively as it was before,
+    # but use context.info for logging.
+    
+    def generate_and_get_response(p):
+        res = ""
+        # Use simple color for interactive part if Rich is not used
+        click.echo(click.style("", fg="yellow"), nl=False)
+        for chunk in invoke_llm_stream(p, model=context.model, system_message=system_message):
+            click.echo(chunk, nl=False)
+            res += chunk
+        click.echo(click.style("", reset=True))
+        return res
 
-    while not click.confirm(click.style('Do you want to confirm this message commit?', fg='green')):
+    response = generate_and_get_response(prompt)
+
+    while not click.confirm(click.style('Do you want to confirm this commit message?', fg='green')):
         feedback = click.prompt("What should be changed?", default="Change it please")
-        prompt = f"Este mensaje no me convence: {response}. Feedback: {feedback}. Genera uno nuevo para este diff: {diff}"
-        print("\033[33m", end="", flush=True)
-        response = ""
-        for chunk in invoke_llm_stream(prompt, model=model, system_message=system_message):
-            print(chunk, end="", flush=True)
-            response += chunk
-        print("\033[0m")
+        prompt = f"This message didn't convince me: {response}. Feedback: {feedback}. Generate a new one for this diff: {diff}"
+        context.info("🤔 Regenerating commit message...", fg="yellow")
+        response = generate_and_get_response(prompt)
 
     stdout = execute_git_commit(response)
     if stdout:
-        print(f"\n{stdout}")
+        context.display(stdout)
     if copy:
         pyperclip.copy(response)
 

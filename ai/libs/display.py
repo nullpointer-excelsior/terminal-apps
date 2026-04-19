@@ -2,11 +2,78 @@ from rich.markdown import Markdown
 from rich.console import Console
 from contextlib import nullcontext
 import click
+import json
+from typing import Any
 from abc import ABC, abstractmethod
-from libs.llm import invoke_llm, invoke_llm_stream
+from .llm import invoke_llm, invoke_llm_stream
 
 
 console = Console()
+error_console = Console(stderr=True)
+
+
+class DisplayStrategy(ABC):
+    @abstractmethod
+    def display_text(self, text: str):
+        """Displays raw text result."""
+        pass
+
+    @abstractmethod
+    def display_data(self, data: Any):
+        """Displays structured data."""
+        pass
+
+    @abstractmethod
+    def display_stream(self, stream_generator):
+        """Handles streaming LLM responses."""
+        pass
+
+
+class RichDisplayStrategy(DisplayStrategy):
+    def __init__(self):
+        self.console = console
+
+    def display_text(self, text: str):
+        print('')
+        self.console.print(Markdown(text))
+        print('')
+
+    def display_data(self, data: Any):
+        self.console.print(data)
+
+    def display_stream(self, stream_generator):
+        return display_highlighted_code(stream_generator)
+
+
+class PlainDisplayStrategy(DisplayStrategy):
+    def display_text(self, text: str):
+        click.echo(text)
+
+    def display_data(self, data: Any):
+        click.echo(str(data))
+
+    def display_stream(self, stream_generator):
+        complete_response = ''
+        for chunk in stream_generator:
+            complete_response += chunk
+            click.echo(chunk, nl=False)
+        click.echo('')
+        return complete_response
+
+
+class JSONDisplayStrategy(DisplayStrategy):
+    def display_text(self, text: str):
+        self.display_data({"result": text})
+
+    def display_data(self, data: Any):
+        click.echo(json.dumps(data, indent=2, ensure_ascii=False))
+
+    def display_stream(self, stream_generator):
+        complete_response = ''
+        for chunk in stream_generator:
+            complete_response += chunk
+        self.display_data({"result": complete_response})
+        return complete_response
 
 
 def display_markdown(content):

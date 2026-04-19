@@ -1,5 +1,5 @@
-from libs.llm import invoke_llm_structured
-from libs.cli import copy_option, userinput_argument, get_context_options
+from .libs.llm import invoke_llm_structured
+from .libs.cli import copy_option, userinput_argument, get_context_options
 import click
 from pydantic import BaseModel, Field
 from typing import List
@@ -10,21 +10,21 @@ from rich.text import Text
 
 
 prompt_base="""
-Eres un experto tutor de inglés y ayudarás al usuario a aprender inglés siguiendo las siguientes instrucciones:
+You are an expert English tutor. Help the user learn English following these instructions:
 
-# Instrucciones:
-- Responderás de forma directa y de la forma más concisa posible.
-- Todo texto en inglés que el usuario te proporcione puede que tenga errores y deberás corregirlo, entregando una lista de correcciones.
-- Importante: el texto corregido DEBE IR AL PRINCIPIO DE LA RESPUESTA.
-- Si el usuario te entrega un texto en español, deberás traducirlo.
-- Deberás dar sugerencias para mejorar las frases que el usuario te dé si estas están en inglés y no suenan bien.
-- Deberás dar todas tus respuestas con un resumen de errores y sugerencias, y al final el texto que el usuario necesita o te pidió que corrijas.
-- Explicarás gramática, phrasal verbs o tiempos verbales.
-- Si una frase contiene números, deberás dar el número escrito; por ejemplo: I'm 30: I'm thirty (30).
-- El usuario puede que te entregue un texto en inglés con palabras en español encerradas entre "<>" lo que significa que él no sabe cómo se dice esa palabra en inglés; deberás dar la traducción en el texto corregido, ejemplo: 
+# Instructions:
+- Respond directly and as concisely as possible.
+- Any English text the user provides may have errors; you must correct it and provide a list of corrections.
+- Important: the corrected text MUST BE AT THE BEGINNING OF THE RESPONSE.
+- If the user provides text in Spanish, you must translate it.
+- Provide suggestions to improve phrases if they are in English but don't sound natural.
+- Give all your responses with a summary of errors and suggestions, and finally the text the user needs or asked you to correct.
+- Explain grammar, phrasal verbs, or verb tenses.
+- If a phrase contains numbers, provide the written number; for example: I'm 30: I'm thirty (30).
+- The user may provide English text with Spanish words enclosed in "<>", which means they don't know how to say that word in English; provide the translation in the corrected text. Example: 
     - I want to <ser libre>: "I want to break free"
-    - He <tenía que ir a trabajar> on Sunday: "he had to go to work on Sunday" 
-- Deberás dar la lección de inglés con un nombre corto y en inglés más adecuado para aprender de la falencia del usuario.
+    - He <tenía que ir a trabajar> on Sunday: "He had to go to work on Sunday" 
+- Provide the English lesson with a short, appropriate English name to help the user learn from their mistakes.
 """
 
 
@@ -35,45 +35,57 @@ class EnglishTutorResponse(BaseModel):
     suggestions: List[str] = Field(description="Suggestions to improve the flow or sound more natural.")
 
 
-@click.command(help='Profesor de inglés')
+@click.command(help='English Teacher')
 @click.pass_context
 @userinput_argument()
 @copy_option()
 def english(ctx, userinput, copy):
-    model, _ = get_context_options(ctx)
-    console = Console()
+    context = ctx.obj['context']
 
-    with console.status("[bold green]Pensando..."):
-        response: EnglishTutorResponse = invoke_llm_structured(
-            prompt=userinput,
-            output_schema=EnglishTutorResponse,
-            model=model,
-            system_message=prompt_base
-        )
-
-    # Render corrected text prominently
-    console.print(Panel(
-        Text(response.corrected_text, style="bold green"),
-        title="[bold green]Corrected Text",
-        border_style="green"
-    ))
-
-    if response.corrections:
-        console.print("\n[bold blue]Corrections:")
-        for c in response.corrections:
-            console.print(f" [blue]•[/blue] {c}")
-
-    if response.errors:
-        console.print("\n[bold red]Errors:")
-        for e in response.errors:
-            console.print(f" [red]•[/red] {e}")
-
-    if response.suggestions:
-        console.print("\n[bold yellow]Suggestions:")
-        for s in response.suggestions:
-            console.print(f" [yellow]•[/yellow] {s}")
+    context.info(f"🤔 Thinking with {context.model}...", fg="green", bold=True)
     
-    console.print()
+    response: EnglishTutorResponse = invoke_llm_structured(
+        prompt=userinput,
+        output_schema=EnglishTutorResponse,
+        model=context.model,
+        system_message=prompt_base
+    )
+
+    # Use strategies for display where possible or use context.display/info for specialized formatting
+    # Since EnglishTutorResponse is structured, we can pass it to display_data or handle it here.
+    # To keep the rich experience for standard TTY, we can use context.info/log.
+    
+    # We'll use a dictionary to leverage strategy.display_data if needed, 
+    # but for standard output we want the nice panels.
+    
+    if hasattr(context.strategy, 'console'): # RichDisplayStrategy uses console
+        from rich.panel import Panel
+        from rich.text import Text
+        context.strategy.console.print(Panel(
+            Text(response.corrected_text, style="bold green"),
+            title="[bold green]Corrected Text",
+            border_style="green"
+        ))
+
+        if response.corrections:
+            context.strategy.console.print("\n[bold blue]Corrections:")
+            for c in response.corrections:
+                context.strategy.console.print(f" [blue]•[/blue] {c}")
+
+        if response.errors:
+            context.strategy.console.print("\n[bold red]Errors:")
+            for e in response.errors:
+                context.strategy.console.print(f" [red]•[/red] {e}")
+
+        if response.suggestions:
+            context.strategy.console.print("\n[bold yellow]Suggestions:")
+            for s in response.suggestions:
+                context.strategy.console.print(f" [yellow]•[/yellow] {s}")
+        
+        context.strategy.console.print()
+    else:
+        # For Plain or JSON strategy
+        context.display(response.model_dump())
 
     if copy:
         pyperclip.copy(response.corrected_text)
