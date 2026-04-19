@@ -1,5 +1,5 @@
 import click
-from markdown import mdcat, mdcode_file, mdcode_sources, mdcode_directory, mdcode_select
+from .markdown import mdcat, mdcode_file, mdcode_sources, mdcode_directory, mdcode_select
 
 
 @click.group(help='Herramientas de manipulacion de archivos para terminal bash')

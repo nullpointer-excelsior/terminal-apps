@@ -1,5 +1,5 @@
 import click
-from recorder import record
+from .recorder import record
 
 
 @click.group(help='Herramientas de audio para terminal bash')

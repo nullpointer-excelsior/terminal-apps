@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 from pathlib import Path
 import os
-from libs.commands import FzfCommand
+from .libs.commands import FzfCommand
 
 
 IGNORE_DIRECTORIES = ["node_modules", "venv", ".venv", "__pycache__"]

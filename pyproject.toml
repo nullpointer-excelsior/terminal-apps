@@ -9,7 +9,10 @@ dependencies = [
     "langchain>=1.2.15",
     "langchain-google-genai>=4.2.2",
     "langchain-openai>=1.1.13",
+    "numpy>=2.4.4",
     "pydantic>=2.13.1",
     "pyperclip>=1.11.0",
     "rich>=15.0.0",
+    "sounddevice>=0.5.5",
+    "soundfile>=0.13.1",
 ]

@@ -1,4 +1,4 @@
-from libs.recorder import Recorder, merge_mp3
+from .libs.recorder import Recorder, merge_mp3
 import click
 from datetime import datetime
 import os
