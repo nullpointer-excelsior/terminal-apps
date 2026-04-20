@@ -1,4 +1,4 @@
 #!/bin/bash
 
 TARGET_DIR="$HOME/Repositories/terminal-apps"
-cd "$TARGET_DIR" && uv run -m filekit "$@"
+PYTHONPATH="$TARGET_DIR" "$TARGET_DIR/.venv/bin/python" -m filekit "$@"
