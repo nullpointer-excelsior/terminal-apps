@@ -7,13 +7,14 @@ from pydantic import BaseModel
 MODEL_ALIASES = {
     "gpt4o": "openai:gpt-4o",
     "gpt4om": "openai:gpt-4o-mini",
+    "gpt5m": "openai:gpt-5-mini",
     "o1": "openai:o1-preview",
     "o1m": "openai:o1-mini",
     "gemini": "google-genai:gemini-1.5-pro",
     "geminim": "google-genai:gemini-1.5-flash",
 }
 
-DEFAULT_MODEL = "openai:gpt-4o-mini"
+DEFAULT_MODEL = "openai:gpt-5-mini"
 
 
 class AIInfrastructureError(Exception):
