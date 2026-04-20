@@ -13,35 +13,34 @@ This repository contains a collection of command-line tools powered by AI, desig
     -   `summarize`: Summarize text with customizable parameters.
     -   `screenshot`: Capture screenshots and process them with AI.
     -   `commit-generator`: Generate semantic commit messages.
-    -   `chat`: Interactive chat sessions with ChatGPT.
     -   `transcribe`: Transcribe audio files to text.
 -   **`audio`**: Tools for recording and manipulating audio.
     -   `record`: Record audio in MP3 format with pause and resume options.
--   **`dev`**: Tools for development tasks.
-    -   `summarize_sources`: Summarize source code files.
-    -   `summarize_dir`: Summarize source code within a directory.
--   **`filesystem`**: Tools for files.
+-   **`filekit`**: Tools for files and source code exploration.
     -   `mdcat`: Show markdown files with pretty output.
+    -   `mdcode-file`: Show markdown files.
+    -   `mdcode-sources`: Summarize multiple source code files into a single markdown.
+    -   `mdcode-directory`: Summarize all source code within a directory.
+    -   `mdcode-select`: Interactive selection of files to summarize using fzf.
 
 ## Installation
 
 ```shell
-#!/bin/bash
+# Clone the repository
+git clone <repository-url>
+cd terminal-apps
 
-#  install dependencies
-pip install -r requirements.txt
-
-# add to .bash_profile or .zshrc
+# Install scripts to ~/.scripts
+./install.sh
 
 # -- env requirements
 export OPENAI_API_KEY="XXX"
 export AI_PROMPT_RESOURCES="$HOME/Repositories/ai-prompt-resources"
 
-# -- define alias 
-alias ai='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/ai'
-alias dev='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/dev'
-alias audio='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/audio'
-alias filesystem='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-apps/filesystem'
+# -- Usage with uv
+uv run python -m ai --help
+uv run python -m filekit --help
+uv run python -m audio --help
 ```
 
 
@@ -49,22 +48,20 @@ alias filesystem='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-
 
 ### General Parameters (Applicable to `ai` commands)
 
--   **`--model`, `-m`**: Specifies the AI model to use (e.g., `gpt4om`).
--   **`--temperature`, `-t`**: Controls the randomness of the AI's output (0 to 2).
--   **`--copy`, `-c`**: Copies the AI's response to the clipboard.
+-   **`--model`, `-m`**: Specifies the AI model to use (e.g., `gpt4om`, `gemini`, `o1`).
+-   **`--plain`**: Plain text output.
+-   **`--json`**: JSON output.
+-   **`--verbose`**: Verbose output (diagnostics on stderr).
 -   **`userinput`**: Text input for the AI to process (can also be piped from stdin).
 
-### `ai/chat.py` Parameters
-
--   **`--prompt`, `-p`**: Selects a prompt from predefined resources.
-
-### `ai/screenshot.py` Parameters
+### `ai screenshot` Parameters
 
 -   **`--translate`, `-tr`**: Enables image translation.
 -   **`--explain`, `-e`**: Enables image explanation.
 -   **`--prompt`, `-p`**: Provides a custom text prompt for image processing.
+-   **`--copy`, `-c`**: Copies the response to the clipboard.
 
-### `ai/text.py` Parameters
+### `ai summarize` Parameters
 
 -   **`--words`, `-w`**: Limits the summary to a specified number of words.
 -   **`--sentences`, `-s`**: Limits the summary to a specified number of sentences.
@@ -73,25 +70,22 @@ alias filesystem='${REPOSITORY_DIR}/.venv/bin/python ${REPOSITORY_DIR}/terminal-
 -   **`--style`, `-st`**: Sets the style of the summary.
 -   **`--markdown`, `-md`**: Formats the output as Markdown.
 -   **`--translate`, `-tr`**: Translates the summary if necessary.
--   **`--transcription-model`, `-tm`**: Selects the transcription model.
--   **`--language`, `-l`**: Selects the language of the audio to transcribe.
 
-### `dev/developer.py` Parameters
+### `ai transcribe` Parameters
 
--   **`--session`, `-s`**: Creates or retrieves a session for the developer assistant.
--   **`userinput`**: Input text for the developer assistant to process.
--   **`--markdown`**: Formats the output as Markdown.
+-   **`--copy`, `-c`**: Copies the response to the clipboard.
+-   **`--language`, `-l`**: Selects the language of the audio (e.g., "en", "es").
 
-### `audio/recorder.py` Parameters
+### `ai dev` Parameters
+
+-   **`--markdown`, `-md`**: Formats the output as Markdown.
+-   **`--file`, `-f`**: Attaches a file as context for the developer assistant.
+
+### `audio record` Parameters
 
 -   **`record-name`**: The base name for the recorded audio file.
 
-### `dev/sumarize_source_code.py` Parameters
+### `filekit mdcode-*` Parameters
 
--   **`--output`, `-o`**: Specifies the output file for the summary in Markdown format.
--   **`src_files`**: List of source code files to summarize.
--   **`directory`**: Directory containing source code files to summarize.
-
-### `filesystem/filesystem.py` Parameters
-
--   **`src_files`**: List of markdown files to show.
+-   **`src_files`**: List of source code files to summarize (for `mdcode-sources`).
+-   **`directory`**: Directory containing source code files to summarize (for `mdcode-directory`).
