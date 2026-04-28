@@ -5,11 +5,12 @@ Analyzes a source file and recursively discovers all internal file
 dependencies by delegating to an LLM that reads the project tree.
 """
 
+import fnmatch
 import os
 import click
 from pathlib import Path
 from operator import add, or_
-from typing import Annotated, List, Optional, Set, TypedDict
+from typing import Annotated, FrozenSet, List, Optional, Set, TypedDict
 
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
@@ -62,29 +63,89 @@ def read_file(file_path: str) -> Optional[str]:
         return None
 
 
+def parse_gitignore(directory: str) -> FrozenSet[str]:
+    """
+    Parse ``<directory>/.gitignore`` and return its patterns as a frozenset.
+
+    Lines that are empty or start with ``#`` are skipped.
+    Trailing whitespace and leading ``/`` anchors are stripped so that
+    ``fnmatch`` can match plain file/directory names without path prefixes.
+    """
+    gitignore_path = Path(directory) / ".gitignore"
+    if not gitignore_path.is_file():
+        return frozenset()
+
+    patterns: Set[str] = set()
+    for raw_line in gitignore_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        # Skip blank lines and comments.
+        if not line or line.startswith("#"):
+            continue
+        # Strip a leading slash so patterns like "/dist" match "dist" too.
+        patterns.add(line.lstrip("/"))
+
+    return frozenset(patterns)
+
+
+def _is_ignored(name: str, rel_path: str, patterns: FrozenSet[str]) -> bool:
+    """
+    Return ``True`` if *name* or its relative path matches any gitignore pattern.
+
+    Checks both the bare name (e.g. ``node_modules``) and the path relative to
+    the project root (e.g. ``src/generated/foo.py``) so that directory globs
+    and path-specific patterns both work correctly.
+    """
+    for pattern in patterns:
+        if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(rel_path, pattern):
+            return True
+    return False
+
+
 def generate_tree(directory: str) -> str:
-    """Return an ASCII directory tree rooted at *directory*."""
-    lines: List[str] = []
+    """
+    Return an ASCII directory tree rooted at *directory*.
 
-    def _recurse(current: str, prefix: str = "") -> None:
-        try:
-            items = sorted(os.listdir(current))
-        except PermissionError:
-            return
-        for idx, item in enumerate(items):
-            path = os.path.join(current, item)
-            is_last = idx == len(items) - 1
-            connector = "└── " if is_last else "├── "
-            lines.append(f"{prefix}{connector}{item}")
-            if os.path.isdir(path):
-                extension = "    " if is_last else "│   "
-                _recurse(path, prefix + extension)
-
+    Entries that match patterns declared in ``<directory>/.gitignore`` are
+    silently excluded, keeping the tree relevant for source-code analysis.
+    The ``.git`` folder is always excluded regardless of gitignore contents.
+    """
     if not os.path.isdir(directory):
         return "Directory not found."
 
-    lines.append(os.path.basename(os.path.abspath(directory)) or directory)
-    _recurse(directory)
+    ignored_patterns = parse_gitignore(directory)
+    # Always hide the VCS metadata folder.
+    always_ignore: FrozenSet[str] = frozenset({".git"})
+    all_patterns = ignored_patterns | always_ignore
+
+    root_abs = os.path.abspath(directory)
+    lines: List[str] = [os.path.basename(root_abs) or directory]
+
+    def _recurse(current_abs: str, prefix: str = "") -> None:
+        try:
+            raw_items = sorted(os.listdir(current_abs))
+        except PermissionError:
+            return
+
+        # Filter out ignored entries before deciding which is "last".
+        visible_items = [
+            item for item in raw_items
+            if not _is_ignored(
+                item,
+                os.path.relpath(os.path.join(current_abs, item), root_abs),
+                all_patterns,
+            )
+        ]
+
+        for idx, item in enumerate(visible_items):
+            abs_path = os.path.join(current_abs, item)
+            is_last = idx == len(visible_items) - 1
+            connector = "└── " if is_last else "├── "
+            lines.append(f"{prefix}{connector}{item}")
+            if os.path.isdir(abs_path):
+                extension = "    " if is_last else "│   "
+                _recurse(abs_path, prefix + extension)
+
+    _recurse(root_abs)
     return "\n".join(lines)
 
 
