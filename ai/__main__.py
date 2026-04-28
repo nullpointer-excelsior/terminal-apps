@@ -1,4 +1,5 @@
 from .developer import dev, commit_generator
+from .dependency_scanner import scan_deps
 from .english import english
 from .libs.cli import model_option
 from .screenshot import screenshot
@@ -36,6 +37,7 @@ cli.add_command(summarize)
 cli.add_command(screenshot)
 cli.add_command(commit_generator)
 cli.add_command(transcribe)
+cli.add_command(scan_deps)
 
 if __name__ == "__main__":
     cli()
