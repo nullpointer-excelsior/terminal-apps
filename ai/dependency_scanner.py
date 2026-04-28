@@ -280,10 +280,29 @@ def build_agent(model: str):
 
 @click.command("scan-deps")
 @click.argument("filename", type=click.Path(exists=True))
+@click.option("--json", "output_json", is_flag=True, help="Output results in JSON format.")
+@click.option(
+    "--plain/--no-plain",
+    default=True,
+    help="Output results as a plain list (default) or formatted.",
+)
 @click.pass_context
-def scan_deps(ctx: click.Context, filename: str) -> None:
+def scan_deps(ctx: click.Context, filename: str, output_json: bool, plain: bool) -> None:
     """Scan a file for internal dependencies using LangGraph."""
     context = ctx.obj["context"]
+
     agent = build_agent(context.model)
     result: OutputState = agent.invoke({"filename": filename})
-    context.display({"file_dependencies": result.get("file_dependencies", [])})
+    dependencies = result.get("file_dependencies", [])
+
+    if output_json:
+        import json as json_lib
+
+        click.echo(json_lib.dumps({"root": filename, "file_dependencies": dependencies}))
+    elif plain:
+        click.echo(filename)
+        for dep in dependencies:
+            click.echo(dep)
+            
+    else:
+        context.display({"file_dependencies": dependencies})
