@@ -1,16 +1,24 @@
+"""
+Dependency scanner using LangGraph.
+
+Analyzes a source file and recursively discovers all internal file
+dependencies by delegating to an LLM that reads the project tree.
+"""
+
 import os
 import click
-from typing import Annotated, List, Set, TypedDict, Optional
 from pathlib import Path
 from operator import add, or_
+from typing import Annotated, List, Optional, Set, TypedDict
+
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
-from langgraph.graph import StateGraph, END, START
+from langgraph.graph import END, START, StateGraph
 
 
-class OutputDependencies(TypedDict):
-    file_dependencies: List[str]
-
+# ---------------------------------------------------------------------------
+# State schemas
+# ---------------------------------------------------------------------------
 
 class InputState(TypedDict):
     filename: str
@@ -21,17 +29,32 @@ class OutputState(TypedDict):
 
 
 class DependencyState(TypedDict):
-    # Queue of files to be analyzed
+    """Internal graph state threaded through every node."""
+
+    # Files still waiting to be analysed (treated as a FIFO queue).
     file_queue: List[str]
-    # Set of files already visited to prevent circular dependency loops
+    # Files that have already been processed (reducer: union of sets).
     processed_files: Annotated[Set[str], or_]
-    # Aggregated list of all discovered dependencies
+    # Every dependency discovered so far (reducer: list concatenation).
     all_dependencies: Annotated[List[str], add]
     project_root: str
     tree_view: str
 
 
-def read_file_content(file_path: str) -> Optional[str]:
+# ---------------------------------------------------------------------------
+# LLM output schema
+# ---------------------------------------------------------------------------
+
+class FileDependencies(TypedDict):
+    file_dependencies: List[str]
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers
+# ---------------------------------------------------------------------------
+
+def read_file(file_path: str) -> Optional[str]:
+    """Return the UTF-8 text of *file_path*, or ``None`` on any error."""
     path = Path(file_path)
     try:
         return path.read_text(encoding="utf-8") if path.is_file() else None
@@ -40,112 +63,166 @@ def read_file_content(file_path: str) -> Optional[str]:
 
 
 def generate_tree(directory: str) -> str:
-    output = []
-    def build_tree(current_path: str, prefix: str = ""):
+    """Return an ASCII directory tree rooted at *directory*."""
+    lines: List[str] = []
+
+    def _recurse(current: str, prefix: str = "") -> None:
         try:
-            items = sorted(os.listdir(current_path))
+            items = sorted(os.listdir(current))
         except PermissionError:
             return
-        for index, item in enumerate(items):
-            path = os.path.join(current_path, item)
-            is_last = (index == len(items) - 1)
+        for idx, item in enumerate(items):
+            path = os.path.join(current, item)
+            is_last = idx == len(items) - 1
             connector = "└── " if is_last else "├── "
-            output.append(f"{prefix}{connector}{item}")
+            lines.append(f"{prefix}{connector}{item}")
             if os.path.isdir(path):
-                build_tree(path, prefix + ("    " if is_last else "│   "))
-    
-    if os.path.isdir(directory):
-        output.append(os.path.basename(os.path.abspath(directory)) or directory)
-        build_tree(directory)
-        return "\n".join(output)
-    return "Directory not found."
+                extension = "    " if is_last else "│   "
+                _recurse(path, prefix + extension)
+
+    if not os.path.isdir(directory):
+        return "Directory not found."
+
+    lines.append(os.path.basename(os.path.abspath(directory)) or directory)
+    _recurse(directory)
+    return "\n".join(lines)
 
 
-# Initialize LLM with structured output
-def build_agent(model: str):
+# ---------------------------------------------------------------------------
+# LLM chain factory
+# ---------------------------------------------------------------------------
+
+_SYSTEM_PROMPT = (
+    "You are a technical assistant specialised in code analysis. "
+    "Identify internal file dependencies from the provided source code. "
+    "Use the directory tree to resolve paths. "
+    "Return only files that actually exist in the tree."
+)
+
+_HUMAN_TEMPLATE = (
+    "Project Tree:\n{tree}\n\n"
+    "Current File Path: {filename}\n\n"
+    "Content:\n{content}"
+)
+
+
+def build_dependency_chain(model: str):
+    """Return a runnable chain: dict → FileDependencies."""
     llm = init_chat_model(model)
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a technical assistant specialized in code analysis. "
-                   "Identify internal file dependencies from the provided source code. "
-                   "Use the directory tree to resolve paths. Return only existing files from the tree."),
-        ("human", "Project Tree:\n{tree}\n\nCurrent File Path: {filename}\n\nContent:\n{content}")
-    ])
-    dependency_analyzer = prompt | llm.with_structured_output(OutputDependencies)
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", _SYSTEM_PROMPT), ("human", _HUMAN_TEMPLATE)]
+    )
+    return prompt | llm.with_structured_output(FileDependencies)
 
-    def init_analyzer_node(state: InputState) -> DependencyState:
+
+# ---------------------------------------------------------------------------
+# Graph node factories
+# ---------------------------------------------------------------------------
+
+def make_init_node(project_root: str = "."):
+    """Return the initialisation node (InputState → DependencyState)."""
+
+    def init_node(state: InputState) -> DependencyState:
         return {
             "file_queue": [state["filename"]],
             "processed_files": set(),
             "all_dependencies": [],
-            "project_root": ".",
-            "tree_view": generate_tree(".")
+            "project_root": project_root,
+            "tree_view": generate_tree(project_root),
         }
 
-    def analyze_file_node(state: DependencyState) -> DependencyState:
+    return init_node
+
+
+def make_analyze_node(dependency_chain):
+    """Return the analysis node that pops one file from the queue."""
+
+    def analyze_node(state: DependencyState) -> DependencyState:
         queue = list(state["file_queue"])
         if not queue:
             return {}
 
         current_file = queue.pop(0)
-        
-        # Skip if already processed
+
+        # Skip files we have already visited.
         if current_file in state["processed_files"]:
             return {"file_queue": queue}
 
-        content = read_file_content(current_file)
-        if not content:
+        content = read_file(current_file)
+        if content is None:
             return {
                 "processed_files": {current_file},
-                "file_queue": queue
+                "file_queue": queue,
             }
 
-        result = dependency_analyzer.invoke({
-            "tree": state["tree_view"],
-            "filename": current_file,
-            "content": content
-        })
+        result: FileDependencies = dependency_chain.invoke(
+            {
+                "tree": state["tree_view"],
+                "filename": current_file,
+                "content": content,
+            }
+        )
 
-        found_deps = result.get("file_dependencies", [])
-        
-        # Identify new files for the queue
-        new_to_queue = [
-            dep for dep in found_deps 
-            if dep not in state["processed_files"] and dep not in queue
-        ]
+        found_deps: List[str] = result.get("file_dependencies", [])
+        already_seen = state["processed_files"] | set(queue)
+        new_files = [dep for dep in found_deps if dep not in already_seen]
 
         return {
-            "file_queue": queue + new_to_queue,
+            "file_queue": queue + new_files,
             "processed_files": {current_file},
-            "all_dependencies": found_deps
+            "all_dependencies": found_deps,
         }
 
-    def output_node(state: DependencyState) -> OutputState:
-        return {"file_dependencies": sorted(list(set(state["all_dependencies"])))}
+    return analyze_node
 
-    def router_logic(state: DependencyState):
-        return "analyze" if state["file_queue"] else END
 
-    workflow = StateGraph(state_schema=DependencyState, input_schema=InputState, output_schema=OutputState)
-    workflow.add_node("init", init_analyzer_node)
-    workflow.add_node("analyze", analyze_file_node)
+def output_node(state: DependencyState) -> OutputState:
+    """Deduplicate and sort all discovered dependencies."""
+    return {"file_dependencies": sorted(set(state["all_dependencies"]))}
+
+
+def has_pending_files(state: DependencyState) -> str:
+    """Routing function: keep analysing while the queue is non-empty."""
+    return "analyze" if state["file_queue"] else "output"
+
+
+# ---------------------------------------------------------------------------
+# Graph builder
+# ---------------------------------------------------------------------------
+
+def build_agent(model: str):
+    """Compile and return the LangGraph dependency-scanning agent."""
+    dependency_chain = build_dependency_chain(model)
+
+    workflow = StateGraph(
+        state_schema=DependencyState,
+        input_schema=InputState,
+        output_schema=OutputState,
+    )
+
+    workflow.add_node("init", make_init_node())
+    workflow.add_node("analyze", make_analyze_node(dependency_chain))
     workflow.add_node("output", output_node)
+
     workflow.add_edge(START, "init")
     workflow.add_edge("init", "analyze")
-    workflow.add_edge("analyze", "output")
-    workflow.add_conditional_edges("analyze", router_logic)
+    # After each analysis step, decide whether to loop or finish.
+    workflow.add_conditional_edges("analyze", has_pending_files, ["analyze", "output"])
     workflow.add_edge("output", END)
+
     return workflow.compile()
 
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 
 @click.command("scan-deps")
 @click.argument("filename", type=click.Path(exists=True))
 @click.pass_context
-def scan_deps(ctx, filename):
-    """Scan a file for dependencies using LangGraph."""
+def scan_deps(ctx: click.Context, filename: str) -> None:
+    """Scan a file for internal dependencies using LangGraph."""
     context = ctx.obj["context"]
-    model = context.model
-    agent = build_agent(model)
-    result = agent.invoke({"filename": filename})
-    # Extract file_dependencies from the OutputState dict
-    deps_list = result.get("file_dependencies", [])
-    context.display({"file_dependencies": deps_list})
+    agent = build_agent(context.model)
+    result: OutputState = agent.invoke({"filename": filename})
+    context.display({"file_dependencies": result.get("file_dependencies", [])})
