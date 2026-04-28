@@ -5,13 +5,12 @@ from pydantic import BaseModel
 
 # Model Aliases for backward compatibility and convenience
 MODEL_ALIASES = {
-    "gpt4o": "openai:gpt-4o",
-    "gpt4om": "openai:gpt-4o-mini",
+    "gpt4.1n": "openai:gpt-4.1-nano",
+    "gpt4.1m": "openai:gpt-4.1-mini",
+    "gpt4.1": "openai:gpt-4.1",
     "gpt5m": "openai:gpt-5-mini",
-    "o1": "openai:o1-preview",
-    "o1m": "openai:o1-mini",
-    "gemini": "google-genai:gemini-1.5-pro",
-    "geminim": "google-genai:gemini-1.5-flash",
+    "gemini": "google-genai:gemini-3.1-pro-preview",
+    "gemini-flash": "google-genai:gemini-3-flash-preview",
 }
 
 DEFAULT_MODEL = "openai:gpt-5-mini"
